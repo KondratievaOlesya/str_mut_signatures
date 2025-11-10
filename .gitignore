@@ -1,0 +1,6 @@
+src/str_mut_signatures/__pycache__
+tests/__pycache__
+tests/cli/__pycache__
+tests/integration/__pycache__
+tests/output
+tests/unit/__pycache__
