@@ -1,0 +1,369 @@
+# src/str_mut_signatures/nmf.py
+from __future__ import annotations
+
+import json
+import warnings
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from scipy.optimize import nnls
+from sklearn.decomposition import NMF
+
+FORMAT_VERSION = 1
+
+@dataclass
+class NMFResult:
+    """
+    Container for NMF-based STR mutation signature decomposition.
+
+    Attributes
+    ----------
+    signatures : pandas.DataFrame
+        Matrix of signature profiles.
+        - index   : features (same as input matrix.columns)
+        - columns : signatures (Signature_1, Signature_2, ...)
+
+    exposures : pandas.DataFrame
+        Matrix of sample exposures to each signature.
+        - index   : samples (same as input matrix.index)
+        - columns : signatures (Signature_1, Signature_2, ...)
+
+    model_params : dict
+        Hyperparameters and metadata used to fit the model
+        (n_signatures, init, max_iter, random_state, etc.).
+    """
+
+    signatures: pd.DataFrame
+    exposures: pd.DataFrame
+    model_params: dict[str, Any]
+
+
+def validate_input_matrix(matrix: pd.DataFrame) -> np.ndarray:
+    """
+    Validate that the input is a non-empty, numeric, non-negative DataFrame.
+
+    Returns
+    -------
+    values : numpy.ndarray
+        The underlying numeric matrix (shape: n_samples x n_features).
+    """
+    if not isinstance(matrix, pd.DataFrame):
+        raise TypeError("matrix must be a pandas.DataFrame")
+
+    if matrix.empty:
+        raise ValueError("matrix is empty; NMF requires a non-empty matrix.")
+
+    # Ensure numeric dtype
+    if not np.issubdtype(matrix.dtypes.values[0], np.number) or not all(
+        np.issubdtype(dtype, np.number) for dtype in matrix.dtypes.values
+    ):
+        raise TypeError("matrix must contain only numeric values.")
+
+    values = matrix.to_numpy(dtype=float)
+
+    if (values < 0).any():
+        raise ValueError("NMF requires a non-negative matrix; found negative entries.")
+
+    return values
+
+
+def run_nmf(
+    matrix: pd.DataFrame,
+    n_signatures: int,
+    init: str = "nndsvd",
+    max_iter: int = 200,
+    random_state: int | None = 0,
+    alpha_W: float = 0.0,
+    alpha_H: float = 0.0,
+    l1_ratio: float = 0.0,
+) -> NMFResult:
+    """
+    Run NMF decomposition on a STR mutation count matrix.
+
+    Parameters
+    ----------
+    matrix : pandas.DataFrame
+        Non-negative count matrix:
+        - rows   : samples
+        - columns: mutation feature categories
+    """
+    values = validate_input_matrix(matrix)
+
+    n_samples, n_features = values.shape
+    if n_signatures <= 0:
+        raise ValueError("n_signatures must be a positive integer.")
+    if n_signatures > min(n_samples, n_features):
+        raise ValueError(
+            f"n_signatures ({n_signatures}) cannot exceed "
+            f"min(n_samples, n_features) = {min(n_samples, n_features)}."
+        )
+
+    model = NMF(
+        n_components=n_signatures,
+        init=init,
+        max_iter=max_iter,
+        random_state=random_state,
+        alpha_W=alpha_W,
+        alpha_H=alpha_H,
+        l1_ratio=l1_ratio,
+    )
+
+    # W: samples x K (exposures), H: K x features (signatures)
+    W = model.fit_transform(values)
+    H = model.components_
+
+    signature_labels = [f"Signature_{k+1}" for k in range(n_signatures)]
+
+    signatures_df = pd.DataFrame(
+        H.T,
+        index=matrix.columns,
+        columns=signature_labels,
+    )
+
+    exposures_df = pd.DataFrame(
+        W,
+        index=matrix.index,
+        columns=signature_labels,
+    )
+
+    model_params: dict[str, Any] = {
+        "n_signatures": n_signatures,
+        "init": init,
+        "max_iter": max_iter,
+        "random_state": random_state,
+        "alpha_W": alpha_W,
+        "alpha_H": alpha_H,
+        "l1_ratio": l1_ratio,
+        "reconstruction_err_": float(getattr(model, "reconstruction_err_", np.nan)),
+        "n_iter_": int(getattr(model, "n_iter_", -1)),
+        "format_version": FORMAT_VERSION,
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+
+    return NMFResult(
+        signatures=signatures_df,
+        exposures=exposures_df,
+        model_params=model_params,
+    )
+
+# ---------------------------------------------------------------------------
+# Saving / loading
+# ---------------------------------------------------------------------------
+
+def save_nmf_result(result: NMFResult, outdir: str | Path) -> None:
+    """
+    Save NMFResult to a directory.
+
+    Creates:
+      - signatures.tsv  (features x K)
+      - exposures.tsv   (samples x K)
+      - metadata.json   (model_params + basic shape info + format_version)
+    """
+    outpath = Path(outdir)
+    outpath.mkdir(parents=True, exist_ok=True)
+
+    sig_path = outpath / "signatures.tsv"
+    exp_path = outpath / "exposures.tsv"
+    meta_path = outpath / "metadata.json"
+
+    result.signatures.to_csv(sig_path, sep="\t")
+    result.exposures.to_csv(exp_path, sep="\t")
+
+    # Add a bit of structural metadata
+    metadata = dict(result.model_params)
+    metadata.setdefault("format_version", FORMAT_VERSION)
+    metadata["signatures_shape"] = list(result.signatures.shape)
+    metadata["exposures_shape"] = list(result.exposures.shape)
+    metadata["signature_columns"] = list(result.signatures.columns)
+    metadata["exposure_columns"] = list(result.exposures.columns)
+
+    meta_path.write_text(json.dumps(metadata, indent=2))
+
+
+def load_nmf_result(outdir: str | Path) -> NMFResult:
+    """
+    Load an NMFResult previously saved with save_nmf_result().
+    """
+    outpath = Path(outdir)
+
+    sig_path = outpath / "signatures.tsv"
+    exp_path = outpath / "exposures.tsv"
+    meta_path = outpath / "metadata.json"
+
+    if not sig_path.is_file():
+        raise FileNotFoundError(f"Missing signatures file: {sig_path}")
+    if not exp_path.is_file():
+        raise FileNotFoundError(f"Missing exposures file: {exp_path}")
+    if not meta_path.is_file():
+        raise FileNotFoundError(f"Missing metadata file: {meta_path}")
+
+    signatures = pd.read_csv(sig_path, sep="\t", index_col=0)
+    exposures = pd.read_csv(exp_path, sep="\t", index_col=0)
+
+    metadata = json.loads(meta_path.read_text())
+
+    # Basic sanity checks (non-fatal: warn instead of raising)
+    if "format_version" in metadata and metadata["format_version"] != FORMAT_VERSION:
+        warnings.warn(
+            f"NMF metadata format_version={metadata['format_version']} "
+            f"differs from current FORMAT_VERSION={FORMAT_VERSION}. "
+            "Results should still load, but fields may have changed.",
+            RuntimeWarning, stacklevel=2,
+        )
+
+    if "signatures_shape" in metadata:
+        expected = tuple(metadata["signatures_shape"])
+        if signatures.shape != expected:
+            warnings.warn(
+                f"Loaded signatures shape {signatures.shape} "
+                f"does not match metadata {expected}.",
+                RuntimeWarning, stacklevel=2,
+            )
+
+    if "exposures_shape" in metadata:
+        expected = tuple(metadata["exposures_shape"])
+        if exposures.shape != expected:
+            warnings.warn(
+                f"Loaded exposures shape {exposures.shape} "
+                f"does not match metadata {expected}.",
+                RuntimeWarning, stacklevel=2,
+            )
+
+    return NMFResult(
+        signatures=signatures,
+        exposures=exposures,
+        model_params=metadata,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Projection of new data onto existing signatures
+# ---------------------------------------------------------------------------
+
+
+def validate_projection_inputs(
+    new_matrix: pd.DataFrame,
+    signatures: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+    if not isinstance(new_matrix, pd.DataFrame):
+        raise TypeError("new_matrix must be a pandas.DataFrame.")
+    if not isinstance(signatures, pd.DataFrame):
+        raise TypeError("signatures must be a pandas.DataFrame.")
+
+    if new_matrix.empty:
+        raise ValueError("new_matrix is empty; nothing to project.")
+    if signatures.empty:
+        raise ValueError("signatures is empty; nothing to project onto.")
+
+    if not all(np.issubdtype(dtype, np.number) for dtype in new_matrix.dtypes.values):
+        raise TypeError("new_matrix must contain only numeric values.")
+    if not all(np.issubdtype(dtype, np.number) for dtype in signatures.dtypes.values):
+        raise TypeError("signatures must contain only numeric values.")
+
+    if (new_matrix.to_numpy(dtype=float) < 0).any():
+        raise ValueError("new_matrix must be non-negative for NMF-based projection.")
+    if (signatures.to_numpy(dtype=float) < 0).any():
+        raise ValueError("signatures must be non-negative.")
+
+    # Align features: new_matrix columns vs signatures index
+    common_features = list(
+        new_matrix.columns.intersection(signatures.index)
+    )
+    if not common_features:
+        raise ValueError(
+            "No overlapping features between new_matrix.columns "
+            "and signatures.index."
+        )
+
+    # Warn if many are missing
+    frac_missing = 1.0 - len(common_features) / len(signatures.index)
+    if frac_missing > 0.5:
+        warnings.warn(
+            f"Only {len(common_features)} of {len(signatures.index)} signature features "
+            f"are present in new_matrix (~{100 * (1 - frac_missing):.1f}% overlap).",
+            RuntimeWarning, stacklevel=2,
+        )
+
+    # Subset and order both sides by common_features
+    new_sub = new_matrix.loc[:, common_features]
+    sig_sub = signatures.loc[common_features, :]
+
+    return new_sub, sig_sub, common_features
+
+
+def project_onto_signatures (
+    new_matrix: pd.DataFrame,
+    signatures: pd.DataFrame,
+    method: str = "nnls",
+) -> pd.DataFrame:
+    """
+    Project new samples onto existing signatures to obtain exposures.
+
+    Parameters
+    ----------
+    new_matrix : pandas.DataFrame
+        Matrix of new samples:
+        - rows   : samples
+        - columns: features (must overlap signatures.index).
+
+    signatures : pandas.DataFrame
+        Signature matrix:
+        - index   : features (same space as new_matrix.columns)
+        - columns : signatures (e.g., 'Signature_1', 'Signature_2', ...)
+
+    method : {"nnls"}, default "nnls"
+        Projection method. Currently only non-negative least squares ("nnls")
+        is implemented.
+
+    Returns
+    -------
+    exposures : pandas.DataFrame
+        Exposures of new samples to the given signatures:
+        - rows   : samples (same as new_matrix.index)
+        - columns: signatures (same as signatures.columns)
+
+    Notes
+    -----
+    For method="nnls":
+        For each sample x (1 x F), we solve:
+
+            min_e || x - A e ||_2 subject to e >= 0
+
+        where A is the feature-by-signature matrix (F x K).
+    """
+    if method != "nnls":
+        raise ValueError('Only method="nnls" is currently supported.')
+
+    if nnls is None:  # pragma: no cover
+        raise ImportError(
+            "scipy is required for method='nnls'. "
+            "Install scipy or choose another projection method."
+        )
+
+    new_sub, sig_sub, common_features = validate_projection_inputs(
+        new_matrix, signatures
+    )
+
+    # A: F x K
+    A = sig_sub.to_numpy(dtype=float)
+    K = A.shape[1]
+
+    exposures = np.zeros((new_sub.shape[0], K), dtype=float)
+
+    # Solve NNLS per sample
+    for i, (_, row) in enumerate(new_sub.iterrows()):
+        b = row.to_numpy(dtype=float)
+        coeffs, _ = nnls(A, b)
+        exposures[i, :] = coeffs
+
+    exposures_df = pd.DataFrame(
+        exposures,
+        index=new_sub.index,
+        columns=sig_sub.columns,
+    )
+
+    return exposures_df

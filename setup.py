@@ -1,8 +1,9 @@
 """Setup script for str_mut_signatures."""
 
-from setuptools import setup, find_packages
 import re
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -18,11 +19,17 @@ with open(init_file) as f:
 
 requirements = [
     'pandas>=2.0.0',
+    'numpy>=1.20.0',
+    'scikit-learn>=1.7.2',
+    'matplotlib>=3.3.0',
+    'seaborn>=0.11.0',
+    'matplotlib>=3.10.7'
 ]
 
 test_requirements = [
     'pytest>=8.0.0',
     'pytest-cov>=4.1.0',
+    'pytest-regressions'
 ]
 
 setup(

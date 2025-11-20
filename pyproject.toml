@@ -43,7 +43,7 @@ dev = [
 ]
 
 [project.scripts]
-str_mut_signatures = "str_mut_signatures.cli:cli"
+str_mut_signatures = "str_mut_signatures.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/acg-team/str_mut_signatures"

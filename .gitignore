@@ -4,3 +4,9 @@ tests/cli/__pycache__
 tests/integration/__pycache__
 tests/output
 tests/unit/__pycache__
+dist/
+build/
+.pytest_cache
+src/str_mut_signatures.egg-info
+src/str_mut_signatures/nmf/__pycache__
+src/str_mut_signatures/extract_tally/__pycache__

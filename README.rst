@@ -6,7 +6,8 @@ STR Mutation Signature Analysis.
 
 Python package for analysis of Short Tandem Repeat (STR) mutation signatures from VCF files.
 It extracts somatic STR mutation events from paired tumor–normal VCFs, builds
-count matrices, and performs NMF-based signature decomposition and visualization.
+count matrices, filters them, performs NMF-based signature decomposition, and
+projects new samples onto learned STR mutation signatures.
 
 Contents
 ========
@@ -17,10 +18,12 @@ Contents
 - Somatic STR calls (tumor–normal)
 - Annotating standard VCFs
 - Matrix construction
+- Filtering mutation matrices
+- NMF signatures and projection
 - Command line interface
 - Python API
 - Output
-- Contributions
+- Contributing
 - License
 
 
@@ -28,9 +31,9 @@ Installation
 ============
 
 From PyPI
---------
+---------
 
-Package is available through `PyPI <https://pypi.org/project/str_mut_signatures/>`_. To install, run:
+The package is available through `PyPI <https://pypi.org/project/str_mut_signatures/>`_. Install with:
 
 .. code-block:: shell
 
@@ -60,54 +63,93 @@ Quick start
 Command Line
 ------------
 
-1. Extract somatic STR mutations from paired tumor–normal VCFs and build a count matrix:
+1. **Extract** somatic STR mutation counts from paired tumor–normal VCFs:
 
 .. code-block:: shell
 
     str_mut_signatures extract \
         --vcf-dir data/vcfs/ \
-        --out-matrix counts_len1.tsv \
+        --out-matrix counts_raw.tsv \
         --ru length \
         --ref-length \
         --change
 
-This produces features of the form:
+This produces a count matrix (TSV) with:
+
+- rows = samples
+- columns = STR mutation features such as:
 
 .. code-block:: text
 
     LEN{motif_length}_{ref_length}_{change}
 
-e.g. ``LEN1_10_+1`` for a 1-bp motif, reference length 10, and +1 repeat unit change
-in tumor vs normal.
+For example: ``LEN1_10_+1`` means:
 
-2. Run NMF decomposition:
+- motif length = 1 bp
+- reference repeat length = 10 copies
+- tumor has +1 copy relative to normal.
+
+2. **Filter** the matrix to remove extremely rare features/samples:
+
+.. code-block:: shell
+
+    str_mut_signatures filter \
+        --matrix counts_raw.tsv \
+        --out-matrix counts_filtered.tsv \
+        --feature-method elbow
+
+3. **Run NMF** to learn STR mutation signatures:
 
 .. code-block:: shell
 
     str_mut_signatures nmf \
-        --matrix counts_len1.tsv \
-        --outdir nmf_results
+        --matrix counts_filtered.tsv \
+        --outdir nmf_results \
+        --n-signatures 5
+
+This writes:
+
+- ``nmf_results/signatures.tsv`` – STR mutation signatures (features x K)
+- ``nmf_results/exposures.tsv`` – sample exposures (samples x K)
+- ``nmf_results/metadata.json`` – parameters and metadata.
+
+4. **Project new samples** onto existing signatures:
+
+.. code-block:: shell
+
+    str_mut_signatures project \
+        --matrix new_counts.tsv \
+        --nmf-dir nmf_results \
+        --out-exposures new_exposures.tsv
 
 
 Python Library Usage
 --------------------
+
+Basic pipeline
+~~~~~~~~~~~~~~
 
 .. code-block:: python
 
     from str_mut_signatures import (
         parse_vcf_files,
         build_mutation_matrix,
+        filter_mutation_matrix,
         run_nmf,
+        save_nmf_result,
+        load_nmf_result,
+        project_onto_signatures,
     )
 
-    # Parse annotated paired tumor–normal VCF files
+    # 1) Parse annotated paired tumor–normal VCF files into a long table
     mutations = parse_vcf_files("vcf_directory/")
 
-    # Build a mutation count matrix:
+    # 2) Build a mutation count matrix
     # ru:
-    #   None   -> ignore motif
+    #   None     -> ignore motif
     #   "length" -> use only motif length (LEN1, LEN2, ...)
-    #   "ru"   -> use full repeat unit sequence (e.g. AT, AAT)
+    #   "ru"     -> use full repeat unit sequence (e.g. AT, AAT)
+    #   "AT"     -> AT-rich vs non-AT-rich classification
     # ref_length:
     #   include reference repeat length as a feature component
     # change:
@@ -119,14 +161,32 @@ Python Library Usage
         change=True,
     )
 
-    # Example resulting column name:
-    # LEN1_{ref_length}_{change}
-    # e.g. LEN1_10_+1
+    # 3) Filter the matrix (e.g. manual thresholds)
+    matrix_filt, summary = filter_mutation_matrix(
+        matrix,
+        feature_method="manual",
+        min_feature_total=10,
+        min_samples_with_feature=3,
+        min_sample_total=0,
+    )
 
-    matrix.to_csv("counts_matrix.tsv", sep="\t")
+    # 4) Run NMF
+    nmf_res = run_nmf(matrix_filt, n_signatures=5, random_state=11)
 
-    # Run NMF
-    W, H = run_nmf(matrix, n_signatures=5)
+    # Access signatures and exposures
+    signatures = nmf_res.signatures   # features x K
+    exposures  = nmf_res.exposures    # samples x K
+
+    # 5) Save NMF result for reuse
+    save_nmf_result(nmf_res, "nmf_results")
+
+    # 6) Load NMF result and project new samples
+    nmf_loaded = load_nmf_result("nmf_results")
+    new_exposures = project_onto_signatures(
+        new_matrix=new_counts_df,
+        signatures=nmf_loaded.signatures,
+        method="nnls",
+    )
 
 
 Input format
@@ -200,9 +260,12 @@ Key points:
 
       change = f(REPCN_tumor, REPCN_normal)
 
-  Implementation details (e.g. handling of heterozygous states) follow the
-  library’s internal definition; the core idea is that only tumor–normal
-  differences contribute to the matrix.
+- Heterozygous states and phasing are handled internally:
+  
+  - If **phased genotypes** are present (``GT`` uses ``|``), allele-specific changes
+    are used when possible.
+  - If **unphased** or no phasing information is available (``/`` or missing),
+    a combined per-locus change (total tumor vs total normal) is used.
 
 
 Annotating standard VCFs
@@ -222,7 +285,7 @@ For details see: ``strvcf_annotator``_.
 Matrix construction
 ===================
 
-``build_mutation_matrix`` provides a flexible way to define feature space
+``build_mutation_matrix`` provides a flexible way to define the feature space
 (columns) using simple flags.
 
 Core components
@@ -230,7 +293,7 @@ Core components
 
 Given:
 
-- ``RU``: repeat unit sequence
+- ``RU``: repeat unit sequence (e.g. ``A``, ``AT``, ``AAT``)
 - ``len(RU)``: motif length
 - ``REF``: reference repeat count
 - ``change``: tumor–normal repeat-length change at that locus
@@ -238,7 +301,7 @@ Given:
 you can select:
 
 - ``ru``:
-  
+
   - ``None``:
     
     - Do not use motif information.
@@ -254,14 +317,23 @@ you can select:
     - Use full repeat unit sequence.
     - Example: ``A_10_+1``, ``AT_20_-2``.
 
+  - ``"AT"``:
+
+    - Collapse motifs into AT-rich vs non-AT-rich:
+    - ``AT_rich``: motif consists only of ``A`` and ``T``.
+    - ``non_AT_rich``: motif contains any ``C`` or ``G``.
+
 - ``ref_length`` (bool):
 
   - If ``True``, include the reference repeat length as part of the feature key.
+  - For phased genotypes, this is per-allele normal repeat count.
+  - For unphased genotypes, this is the combined normal repeat count.
 
 - ``change`` (bool):
 
   - If ``True``, include tumor–normal change as part of the feature key.
   - Only somatic events (non-zero change) are counted.
+  - If ``False``, no change term is added and loci are not filtered by change.
 
 Examples
 --------
@@ -292,7 +364,19 @@ Examples
     # Columns: {RU}_{change}
     # e.g. AT_+2
 
-3. Motif length only (no change, e.g. for presence/absence-style summaries):
+3. AT-rich vs non-AT-rich, with ref length and change:
+
+.. code-block:: python
+
+    m = build_mutation_matrix(
+        mutations,
+        ru="AT",
+        ref_length=True,
+        change=True,
+    )
+    # Columns: AT_rich_10_+1, non_AT_rich_20_-2, ...
+
+4. Motif length only (no change, e.g. for presence/absence-style summaries):
 
 .. code-block:: python
 
@@ -305,8 +389,130 @@ Examples
     # Columns: LEN1, LEN2, ...
 
 
+Filtering mutation matrices
+===========================
+
+Large STR feature spaces can be sparse. ``filter_mutation_matrix`` provides
+several strategies to reduce noise before NMF.
+
+Supported methods
+-----------------
+
+.. code-block:: python
+
+    from str_mut_signatures import filter_mutation_matrix
+
+    filtered, summary = filter_mutation_matrix(
+        matrix,
+        feature_method="manual",
+        min_feature_total=10,
+        min_samples_with_feature=3,
+        min_sample_total=0,
+        feature_percentile=0.9,  # used for percentile method
+    )
+
+Methods:
+
+- ``feature_method="manual"``
+
+  - Keep features with:
+
+    - total count across samples >= ``min_feature_total``
+    - present (non-zero) in at least ``min_samples_with_feature`` samples.
+
+  - Drop samples with total counts < ``min_sample_total``.
+
+- ``feature_method="elbow"``
+
+  - Compute feature totals.
+  - Use an "elbow" heuristic to choose a count threshold.
+  - Keep features above that threshold.
+  - Apply ``min_samples_with_feature`` and ``min_sample_total`` as in manual mode.
+
+- ``feature_method="percentile"``
+
+  - Compute feature totals.
+  - Keep features above a chosen percentile of totals
+    (e.g. ``feature_percentile=0.9`` keeps the top 10% by total count).
+  - Apply ``min_samples_with_feature`` and ``min_sample_total`` as in manual mode.
+
+The function returns:
+
+- ``filtered`` – filtered count matrix.
+- ``summary`` – small dataclass with filtering statistics (e.g. numbers of features/samples before/after, thresholds used).
+
+
+NMF signatures and projection
+=============================
+
+NMF decomposition
+-----------------
+
+NMF is used to decompose the filtered matrix into:
+
+- **Signatures**: STR mutation patterns (features x K)
+- **Exposures**: how much each sample uses each signature (samples x K)
+
+.. code-block:: python
+
+    from str_mut_signatures import run_nmf
+
+    nmf_res = run_nmf(
+        matrix,
+        n_signatures=5,
+        init="nndsvd",
+        max_iter=200,
+        random_state=0,
+        alpha_W=0.0,
+        alpha_H=0.0,
+        l1_ratio=0.0,
+    )
+
+    signatures = nmf_res.signatures  # DataFrame: features x K
+    exposures  = nmf_res.exposures   # DataFrame: samples x K
+    params     = nmf_res.model_params
+
+Saving and loading NMF results
+------------------------------
+
+You can save and reload NMF results in a stable format (TSV + JSON):
+
+.. code-block:: python
+
+    from str_mut_signatures import save_nmf_result, load_nmf_result
+
+    save_nmf_result(nmf_res, "nmf_results")
+
+    nmf_loaded = load_nmf_result("nmf_results")
+    # nmf_loaded.signatures, nmf_loaded.exposures, nmf_loaded.model_params
+
+Projecting new samples
+----------------------
+
+Given a previously learned set of signatures, you can compute exposures for
+new samples (e.g. a new cohort or single sample):
+
+.. code-block:: python
+
+    from str_mut_signatures import project_onto_signatures
+
+    new_exposures = project_onto_signatures(
+        new_matrix=new_counts_df,
+        signatures=nmf_loaded.signatures,
+        method="nnls",  # non-negative least squares
+    )
+
+Rows in ``new_exposures`` are new samples, columns are signatures.
+
+
 Command line interface
 ======================
+
+Global options
+--------------
+
+- ``-v / --verbose``: Enable verbose logging.
+- ``--version``: Show package version.
 
 Extract
 -------
@@ -316,7 +522,7 @@ Extract
     str_mut_signatures extract \
         --vcf-dir PATH \
         --out-matrix OUTPUT.tsv \
-        [--ru {none,length,ru}] \
+        [--ru {none,length,ru,AT}] \
         [--ref-length] \
         [--change]
 
@@ -328,10 +534,46 @@ Key options:
   - ``none``: ignore motif.
   - ``length``: use motif length (LEN1, LEN2, ...).
   - ``ru``: use full motif sequence.
+  - ``AT``: use AT-rich vs non-AT-rich labeling.
 
 - ``--ref-length``: Include reference repeat length in feature labels.
 - ``--change``: Encode tumor–normal repeat-length change and restrict to somatic events.
 - ``--out-matrix``: Output TSV with samples as rows and STR mutation features as columns.
+
+
+Filter
+------
+
+.. code-block:: shell
+
+    str_mut_signatures filter \
+        --matrix INPUT.tsv \
+        --out-matrix FILTERED.tsv \
+        [--feature-method {manual,elbow,percentile}] \
+        [--min-feature-total INT] \
+        [--min-samples-with-feature INT] \
+        [--min-sample-total INT] \
+        [--feature-percentile FLOAT]
+
+Examples:
+
+.. code-block:: shell
+
+    # Simple manual thresholds
+    str_mut_signatures filter \
+        --matrix counts_raw.tsv \
+        --out-matrix counts_filtered.tsv \
+        --feature-method manual \
+        --min-feature-total 10 \
+        --min-samples-with-feature 3 \
+        --min-sample-total 0
+
+    # Percentile-based filtering
+    str_mut_signatures filter \
+        --matrix counts_raw.tsv \
+        --out-matrix counts_filtered.tsv \
+        --feature-method percentile \
+        --feature-percentile 0.9
 
 
 NMF
@@ -340,71 +582,99 @@ NMF
 .. code-block:: shell
 
     str_mut_signatures nmf \
-        --matrix counts.tsv \
+        --matrix counts_filtered.tsv \
         --outdir nmf_results \
-        --n-signatures 5
+        --n-signatures 5 \
+        [--max-iter 200] \
+        [--random-state 0] \
+        [--init nndsvd] \
+        [--alpha-W 0.0] \
+        [--alpha-H 0.0] \
+        [--l1-ratio 0.0]
 
 Outputs:
 
-- Signature profiles (W)
-- Sample exposures (H)
-- Basic diagnostic plots
+- ``nmf_results/signatures.tsv`` – signatures (features x K)
+- ``nmf_results/exposures.tsv`` – exposures (samples x K)
+- ``nmf_results/metadata.json`` – parameters and metadata
+
+
+Project
+-------
+
+.. code-block:: shell
+
+    str_mut_signatures project \
+        --matrix NEW_COUNTS.tsv \
+        --nmf-dir nmf_results \
+        --out-exposures NEW_EXPOSURES.tsv
+
+- ``--matrix``: New count matrix (samples x features).
+- ``--nmf-dir``: Directory with an existing NMF result (``signatures.tsv``, ``metadata.json``).
+- ``--out-exposures``: Output TSV with new sample exposures.
 
 
 Python API
 ==========
 
+Main functions
+--------------
+
 .. code-block:: python
 
-    from str_mut_signatures import parse_vcf_files, build_mutation_matrix, run_nmf
-
-    mutations = parse_vcf_files("vcf_directory/")
-
-    m = build_mutation_matrix(
-        mutations,
-        ru="length",
-        ref_length=True,
-        change=True,
+    from str_mut_signatures import (
+        parse_vcf_files,
+        build_mutation_matrix,
+        filter_mutation_matrix,
+        run_nmf,
+        save_nmf_result,
+        load_nmf_result,
+        project_onto_signatures,
     )
 
-    W, H = run_nmf(m, n_signatures=5)
+- ``parse_vcf_files(vcf_dir)`` → DataFrame of per-locus STR mutation data.
+- ``build_mutation_matrix(mutations, ...)`` → samples x features count matrix.
+- ``filter_mutation_matrix(matrix, ...)`` → filtered matrix + summary.
+- ``run_nmf(matrix, n_signatures, ...)`` → ``NMFResult(signatures, exposures, model_params)``.
+- ``save_nmf_result(result, outdir)`` / ``load_nmf_result(outdir)`` for persistence.
+- ``project_onto_signatures(new_matrix, signatures, method="nnls")`` → new exposures.
 
 
 Output
 ======
 
-- Count matrices (TSV): samples x STR mutation features.
-- NMF signatures and exposures.
-- Visualization plots (signatures, exposures).
-- Basic analysis metrics.
+Typical outputs include:
+
+- **Count matrices** (TSV): samples x STR mutation features.
+- **Filtered matrices** (TSV): reduced feature space for robust NMF.
+- **NMF signatures** and **exposures** (TSV).
+- **Metadata** (JSON) describing NMF runs and parameters.
 
 These can be used to:
 
 - Characterize somatic STR mutation processes.
 - Compare STR signatures across cohorts.
 - Associate STR signatures with clinical or genomic features.
+- Apply learned STR signatures to new datasets.
 
-
-Documentation
-==============
-
-* `API Documentation <docs/API.md>`_
-* `Examples <examples/>`_
 
 Contributing
 ============
 
-Contributions are welcome! 
-For major changes, please open an issue first 
+Contributions are welcome!
+
+For major changes, please open an issue first
 to discuss what you’d like to change.
+
 Please ensure:
 
-1. All tests pass
-2. Code follows existing style
-3. New features include tests
-4. Documentation is updated
+1. All tests pass (including integration tests).
+2. Code follows existing style and module structure.
+3. New features include unit tests and, where appropriate, integration tests.
+4. Documentation and examples are updated.
+
 
 License
-============
+=======
 
 MIT License
