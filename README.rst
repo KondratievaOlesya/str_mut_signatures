@@ -277,9 +277,7 @@ the companion tool ``strvcf_annotator``:
 - Takes standard VCF + STR reference.
 - Produces STR-annotated VCFs compatible with ``str_mut_signatures``.
 
-For details see: ``strvcf_annotator``_.
-
-.. _strvcf_annotator: https://github.com/acg-team/strvcf_annotator
+For details see: `strvcf_annotator  <https://github.com/acg-team/strvcf_annotator/>`_. 
 
 
 Matrix construction
