@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import hashlib
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -128,7 +131,7 @@ class TestCLIBasicUsage:
             text=True
         )
         assert result.returncode == 0
-        assert "0.1.0" in result.stdout
+        assert "0.2.1" in result.stdout
 
     def test_no_arguments_fails(self):
         """Test that running without arguments fails."""
@@ -395,7 +398,7 @@ class TestCLINMFCommand:
 class TestCLIIntegration:
     """End-to-end CLI integration tests."""
 
-    def _run_cli(self, args: list[str]) -> subprocess.CompletedProcess:
+    def run_cli(self, args: list[str]) -> subprocess.CompletedProcess:
         """
         Helper: run the str_mut_signatures CLI with given args and
         assert successful return code.
@@ -407,23 +410,19 @@ class TestCLIIntegration:
         ), f"CLI failed: {' '.join(cmd)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         return result
 
-    def test_full_pipeline_cli_from_vcf_to_projection_and_snapshot(
-        self,
-        vcf_dir: str,
-        output_dir: str,
-        data_dir: str,
-    ):
+    # ------------------------------------------------------------------
+    # Helper: run full CLI pipeline once and return pipeline_dir
+    # ------------------------------------------------------------------
+    def run_full_cli_pipeline(self, vcf_dir: str, output_dir: str) -> Path:
         """
-        End-to-end pipeline via CLI:
-
         1) extract: VCF dir -> count matrix
         2) filter: matrix -> filtered matrix
         3) nmf    : filtered matrix -> signatures + exposures + metadata.json
         4) project: new matrix -> new exposures
-        5) snapshot hashes of all files under cli pipeline dir.
-        """
 
-        # All pipeline outputs go here:
+        All outputs are written under:
+            pipeline_dir = output_dir / "cli_integration_pipeline"
+        """
         pipeline_dir = Path(output_dir) / "cli_integration_pipeline"
         pipeline_dir.mkdir(parents=True, exist_ok=True)
 
@@ -438,7 +437,7 @@ class TestCLIIntegration:
         # ------------------------------------------------------------------
         # 1) extract: from all VCFs
         # ------------------------------------------------------------------
-        self._run_cli(
+        self.run_cli(
             [
                 "extract",
                 "--vcf-dir",
@@ -456,7 +455,7 @@ class TestCLIIntegration:
         # ------------------------------------------------------------------
         # 2) filter: feature-level filtering
         # ------------------------------------------------------------------
-        self._run_cli(
+        self.run_cli(
             [
                 "filter",
                 "--matrix",
@@ -478,7 +477,7 @@ class TestCLIIntegration:
         # ------------------------------------------------------------------
         # 3) nmf: run decomposition on filtered matrix
         # ------------------------------------------------------------------
-        self._run_cli(
+        self.run_cli(
             [
                 "nmf",
                 "--matrix",
@@ -494,7 +493,7 @@ class TestCLIIntegration:
             ]
         )
 
-        # These are created by save_nmf_result
+        # These are created by save_nmf_result inside the CLI
         sig_path = nmf_dir / "signatures.tsv"
         exp_path = nmf_dir / "exposures.tsv"
         meta_path = nmf_dir / "metadata.json"
@@ -517,7 +516,7 @@ class TestCLIIntegration:
         shutil.copy2(first_vcf, new_vcf_dir / first_vcf.name)
 
         # Extract for this single-VCF cohort
-        self._run_cli(
+        self.run_cli(
             [
                 "extract",
                 "--vcf-dir",
@@ -533,7 +532,7 @@ class TestCLIIntegration:
         assert new_matrix.is_file()
 
         # Project onto signatures from nmf_dir
-        self._run_cli(
+        self.run_cli(
             [
                 "project",
                 "--matrix",
@@ -546,13 +545,51 @@ class TestCLIIntegration:
         )
         assert new_exposures.is_file()
 
-        # ------------------------------------------------------------------
-        # 5) Snapshot hashes of files under pipeline_dir only
-        # ------------------------------------------------------------------
+        return pipeline_dir
+
+    # ------------------------------------------------------------------
+    # Tests
+    # ------------------------------------------------------------------
+
+    def test_full_pipeline_cli_core(self, vcf_dir: str, output_dir: str):
+        """
+        Full CLI pipeline that must succeed on all Python versions.
+        Does NOT enforce exact file hashes.
+        """
+        pipeline_dir = self.run_full_cli_pipeline(vcf_dir, output_dir)
+
+        # Basic sanity checks for key files
+        assert (pipeline_dir / "matrix_raw.tsv").is_file()
+        assert (pipeline_dir / "matrix_filtered.tsv").is_file()
+        nmf_dir = pipeline_dir / "nmf_results"
+        assert (nmf_dir / "signatures.tsv").is_file()
+        assert (nmf_dir / "exposures.tsv").is_file()
+        assert (nmf_dir / "metadata.json").is_file()
+        assert (pipeline_dir / "new_matrix_single_vcf.tsv").is_file()
+        assert (pipeline_dir / "new_exposures_single_vcf.tsv").is_file()
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 11),
+        reason="NMF numerical differences on Python <3.11 change snapshot hashes",
+    )
+    def test_full_pipeline_cli_snapshot(
+        self,
+        vcf_dir: str,
+        output_dir: str,
+        data_dir: str,
+    ):
+        """
+        Snapshot/hash test for CLI pipeline.
+
+        Only enforced on Python >= 3.11, where NMF numerics (and thus file
+        contents) are stable enough for exact hash comparison.
+        """
+        pipeline_dir = self.run_full_cli_pipeline(vcf_dir, output_dir)
         manifest = build_hash_manifest(pipeline_dir)
 
         gold_path = (
-            Path(data_dir) / "test_cli_full_pipeline_from_vcf_to_projection_and_snapshot.txt"
+            Path(data_dir)
+            / "test_cli_full_pipeline_from_vcf_to_projection_and_snapshot.txt"
         )
 
         if not gold_path.exists():

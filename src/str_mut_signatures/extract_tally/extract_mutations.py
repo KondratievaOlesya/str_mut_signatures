@@ -1,8 +1,12 @@
 from __future__ import annotations
+
 import gzip
 from pathlib import Path
+
 import pandas as pd
+
 from .validate import validate_vcf
+
 
 def parse_info(info_field: str) -> dict:
     info = {}

@@ -1,10 +1,9 @@
-# src/str_mut_signatures/nmf.py
 from __future__ import annotations
 
 import json
 import warnings
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,12 @@ import pandas as pd
 from scipy.optimize import nnls
 from sklearn.decomposition import NMF
 
+try:
+    # Python 3.11+
+    from datetime import UTC
+except ImportError:  # Python < 3.11
+    from datetime import timezone
+    UTC = timezone.utc
 FORMAT_VERSION = 1
 
 @dataclass

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import Literal
+
 import pandas as pd
 
 RuMode = Literal[None, "length", "ru", "AT"]

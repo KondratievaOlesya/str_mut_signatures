@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+import gzip
 from pathlib import Path
 from typing import NamedTuple
 
-import gzip
 
 class VCFValidationResult(NamedTuple):
     has_str_annotations: bool

@@ -39,7 +39,7 @@ from str_mut_signatures import (
 )
 
 
-def run_full_pipeline(vcf_dir: str | Path, outdir: str | Path, n_signatures: int = 2) -> None:
+def run_full_pipeline(vcf_dir: Union[str, Path], outdir: Union[str, Path], n_signatures: int = 2) -> None:
     """
     End-to-end STR mutation signature analysis.
 
@@ -210,7 +210,7 @@ def run_full_pipeline(vcf_dir: str | Path, outdir: str | Path, n_signatures: int
 
 if __name__ == "__main__":
     # Adjust these paths to your environment before running
-    example_vcf_dir = "/home/pho/test_input"  # directory with STR-annotated paired tumor–normal VCFs
+    example_vcf_dir = "/path/to/your/directory"  # directory with STR-annotated paired tumor–normal VCFs
     example_outdir = "example_output"
 
     run_full_pipeline(example_vcf_dir, example_outdir, n_signatures=2)

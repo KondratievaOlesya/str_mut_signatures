@@ -19,11 +19,9 @@ with open(init_file) as f:
 
 requirements = [
     'pandas>=2.0.0',
-    'numpy>=1.20.0',
-    'scikit-learn>=1.7.2',
-    'matplotlib>=3.3.0',
-    'seaborn>=0.11.0',
-    'matplotlib>=3.10.7'
+    'numpy>=1.24',
+    'scikit-learn>=1.3',
+    'matplotlib>=3.7',
 ]
 
 test_requirements = [
@@ -47,6 +45,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
     ],
     description="Extract STR signatures from annotated VCF",
     entry_points={
