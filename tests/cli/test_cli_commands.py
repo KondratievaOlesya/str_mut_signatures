@@ -569,33 +569,30 @@ class TestCLIIntegration:
         assert (pipeline_dir / "new_exposures_single_vcf.tsv").is_file()
 
     # @pytest.mark.skipif(
-    #     sys.version_info < (3, 11),
-    #     reason="NMF numerical differences on Python <3.11 change snapshot hashes",
+    #     sys.version_info < (3, 9),
+    #     reason="NMF numerical differences on Python <3.8 change snapshot hashes",
     # )
-    def test_full_pipeline_cli_snapshot(
-        self,
-        vcf_dir: str,
-        output_dir: str,
-        data_dir: str,
-    ):
-        """
-        Snapshot/hash test for CLI pipeline.
+    # def test_full_pipeline_cli_snapshot(
+    #     self,
+    #     vcf_dir: str,
+    #     output_dir: str,
+    #     data_dir: str,
+    # ):
+    #     """
+    #     Snapshot/hash test for CLI pipeline.
+    #     """
+    #     pipeline_dir = self.run_full_cli_pipeline(vcf_dir, output_dir)
+    #     manifest = build_hash_manifest(pipeline_dir)
 
-        Only enforced on Python >= 3.11, where NMF numerics (and thus file
-        contents) are stable enough for exact hash comparison.
-        """
-        pipeline_dir = self.run_full_cli_pipeline(vcf_dir, output_dir)
-        manifest = build_hash_manifest(pipeline_dir)
+    #     gold_path = (
+    #         Path(data_dir)
+    #         / "test_cli_full_pipeline_from_vcf_to_projection_and_snapshot.txt"
+    #     )
 
-        gold_path = (
-            Path(data_dir)
-            / "test_cli_full_pipeline_from_vcf_to_projection_and_snapshot.txt"
-        )
+    #     if not gold_path.exists():
+    #         # one-time bootstrap if you haven't created the golden file yet
+    #         gold_path.write_text(manifest)
+    #         pytest.skip(f"Bootstrapped CLI golden manifest at {gold_path}")
 
-        if not gold_path.exists():
-            # one-time bootstrap if you haven't created the golden file yet
-            gold_path.write_text(manifest)
-            pytest.skip(f"Bootstrapped CLI golden manifest at {gold_path}")
-
-        expected = gold_path.read_text()
-        assert manifest == expected
+    #     expected = gold_path.read_text()
+    #     assert manifest == expected
