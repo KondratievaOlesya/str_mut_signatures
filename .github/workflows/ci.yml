@@ -31,4 +31,4 @@ jobs:
 
       - name: Run tox (env for this Python)
         run: |
-          tox -e py${{ matrix.python-version//./ }}
+          tox -e py${{ replace(matrix.python-version, '.', '') }}
