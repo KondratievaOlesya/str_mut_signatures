@@ -39,7 +39,7 @@ from str_mut_signatures import (
 )
 
 
-def run_full_pipeline(vcf_dir: Union[str, Path], outdir: Union[str, Path], n_signatures: int = 2) -> None:
+def run_full_pipeline(vcf_dir: str | Path, outdir: str | Path, n_signatures: int = 2) -> None:
     """
     End-to-end STR mutation signature analysis.
 

@@ -277,10 +277,10 @@ class TestFullPipelineIntegration:
         assert (pipeline_dir / "nmf_exposures.tsv").is_file()
 
     @pytest.mark.integration
-    @pytest.mark.skipif(
-        sys.version_info < (3, 11),
-        reason="NMF numerical differences on Python <3.11 change snapshot hashes",
-    )
+    # @pytest.mark.skipif(
+    #     sys.version_info < (3, 11),
+    #     reason="NMF numerical differences on Python <3.11 change snapshot hashes",
+    # )
     def test_full_pipeline_snapshot(self, vcf_dir: str, output_dir: str, data_dir: str):
         """
         Snapshot/hash test: compare the manifest of all files under

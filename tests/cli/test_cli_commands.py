@@ -568,10 +568,10 @@ class TestCLIIntegration:
         assert (pipeline_dir / "new_matrix_single_vcf.tsv").is_file()
         assert (pipeline_dir / "new_exposures_single_vcf.tsv").is_file()
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 11),
-        reason="NMF numerical differences on Python <3.11 change snapshot hashes",
-    )
+    # @pytest.mark.skipif(
+    #     sys.version_info < (3, 11),
+    #     reason="NMF numerical differences on Python <3.11 change snapshot hashes",
+    # )
     def test_full_pipeline_cli_snapshot(
         self,
         vcf_dir: str,
