@@ -15,7 +15,6 @@ Contents
 - `Installation`_
 - `Quick start`_
 - `Input format`_
-- `Somatic STR calls (tumor–normal)`_
 - `Annotating standard VCFs`_
 - `Matrix construction`_
 - `Filtering mutation matrices`_
@@ -60,69 +59,6 @@ Development installation
 
 Quick start
 ===========
-
-Command Line
-------------
-
-1. **Extract** somatic STR mutation counts from paired tumor–normal VCFs:
-
-.. code-block:: shell
-
-    str_mut_signatures extract \
-        --vcf-dir data/vcfs/ \
-        --out-matrix counts_raw.tsv \
-        --ru length \
-        --ref-length \
-        --change
-
-This produces a count matrix (TSV) with:
-
-- rows = samples
-- columns = STR mutation features such as:
-
-.. code-block:: text
-
-    LEN{motif_length}_{ref_length}_{change}
-
-For example: ``LEN1_10_+1`` means:
-
-- motif length = 1 bp
-- reference repeat length = 10 copies
-- tumor has +1 copy relative to normal.
-
-2. **Filter** the matrix to remove extremely rare features/samples:
-
-.. code-block:: shell
-
-    str_mut_signatures filter \
-        --matrix counts_raw.tsv \
-        --out-matrix counts_filtered.tsv \
-        --feature-method elbow
-
-3. **Run NMF** to learn STR mutation signatures:
-
-.. code-block:: shell
-
-    str_mut_signatures nmf \
-        --matrix counts_filtered.tsv \
-        --outdir nmf_results \
-        --n-signatures 5
-
-This writes:
-
-- ``nmf_results/signatures.tsv`` – STR mutation signatures (features x K)
-- ``nmf_results/exposures.tsv`` – sample exposures (samples x K)
-- ``nmf_results/metadata.json`` – parameters and metadata.
-
-4. **Project new samples** onto existing signatures:
-
-.. code-block:: shell
-
-    str_mut_signatures project \
-        --matrix new_counts.tsv \
-        --nmf-dir nmf_results \
-        --out-exposures new_exposures.tsv
-
 
 Python Library Usage
 --------------------
@@ -215,6 +151,67 @@ Basic pipeline
         method="nnls",
     )
 
+Command Line
+------------
+
+1. **Extract** somatic STR mutation counts from paired tumor–normal VCFs:
+
+.. code-block:: shell
+
+    str_mut_signatures extract \
+        --vcf-dir data/vcfs/ \
+        --out-matrix counts_raw.tsv \
+        --ru length \
+        --ref-length \
+        --change
+
+This produces a count matrix (TSV) with:
+
+- rows = samples
+- columns = STR mutation features such as:
+
+.. code-block:: text
+
+    LEN{motif_length}_{ref_length}_{change}
+
+For example: ``LEN1_10_+1`` means:
+
+- motif length = 1 bp
+- reference repeat length = 10 copies
+- tumor has +1 copy relative to normal.
+
+2. **Filter** the matrix to remove extremely rare features/samples:
+
+.. code-block:: shell
+
+    str_mut_signatures filter \
+        --matrix counts_raw.tsv \
+        --out-matrix counts_filtered.tsv \
+        --feature-method elbow
+
+3. **Run NMF** to learn STR mutation signatures:
+
+.. code-block:: shell
+
+    str_mut_signatures nmf \
+        --matrix counts_filtered.tsv \
+        --outdir nmf_results \
+        --n-signatures 5
+
+This writes:
+
+- ``nmf_results/signatures.tsv`` – STR mutation signatures (features x K)
+- ``nmf_results/exposures.tsv`` – sample exposures (samples x K)
+- ``nmf_results/metadata.json`` – parameters and metadata.
+
+4. **Project new samples** onto existing signatures:
+
+.. code-block:: shell
+
+    str_mut_signatures project \
+        --matrix new_counts.tsv \
+        --nmf-dir nmf_results \
+        --out-exposures new_exposures.tsv
 
 Input format
 ============
