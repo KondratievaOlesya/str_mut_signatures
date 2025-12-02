@@ -1,32 +1,28 @@
 from __future__ import annotations
 
 import hashlib
-import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
-import str_mut_signatures.nmf.nmf as nmf_mod
-from str_mut_signatures.extract_tally.extract_mutations import (
-    parse_vcf_files,
-    process_vcf_to_rows,
-)
-from str_mut_signatures.extract_tally.filter import filter_mutation_matrix
-from str_mut_signatures.extract_tally.tally import build_mutation_matrix
-from str_mut_signatures.nmf.nmf import (
+from str_mut_signatures import (
+    build_mutation_matrix,
+    filter_mutation_matrix,
     load_nmf_result,
-    project_onto_signatures,
-    run_nmf,
-    save_nmf_result,
-)
-from str_mut_signatures.nmf.plot import (
-    compute_pca,
+    parse_vcf_files,
     plot_exposures,
     plot_pca_samples,
     plot_signatures,
+    process_vcf_to_rows,
+    project_onto_signatures,
+    run_nmf,
+    save_nmf_result,
 )
 
 # ----------------------------------------------------------------------
@@ -75,22 +71,38 @@ def build_hash_manifest(root: str | Path) -> str:
 # Core pipeline helper
 # ----------------------------------------------------------------------
 
+def to_figures(obj):
+    """
+    Normalize various possible return types from plotting functions to
+    a flat list of matplotlib Figures.
+
+    Accepts:
+      - Figure
+      - Axes (uses .figure)
+      - sequence of Figures/Axes
+    """
+    if isinstance(obj, Figure):
+        return [obj]
+    if isinstance(obj, Axes):
+        return [obj.figure]
+    if isinstance(obj, Sequence):
+        figs = []
+        for x in obj:
+            if isinstance(x, Figure):
+                figs.append(x)
+            elif isinstance(x, Axes):
+                figs.append(x.figure)
+        return figs
+    # fallback: anything with savefig()
+    if hasattr(obj, "savefig"):
+        return [obj]
+    return []
+
 
 def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     """
-    Run the full end-to-end pipeline:
-
-      VCF dir -> mutation extraction -> mutation matrix (tally)
-      -> filtering (all methods) -> NMF -> plotting -> save/load
-      -> project new VCF onto learned signatures
-
-    Writes all intermediate results into `integration_pipeline/`
-    under the given `output_dir`.
-
-    Returns
-    -------
-    Path
-        The pipeline directory with all generated files.
+    Run the full end-to-end pipeline ...
+    (docstring unchanged)
     """
     pipeline_dir = Path(output_dir) / "integration_pipeline"
     pipeline_dir.mkdir(parents=True, exist_ok=True)
@@ -170,30 +182,50 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     nmf_res.exposures.to_csv(pipeline_dir / "nmf_exposures.tsv", sep="\t")
 
     # ------------------------------------------------------------------
-    # 5) Plot signatures, exposures, PCA
+    # 5) Plot signatures, exposures, PCA  (UPDATED)
     # ------------------------------------------------------------------
-    fig_sig = plot_signatures(nmf_res, top_n=10)
-    fig_exp = plot_exposures(nmf_res)
+    sig_obj = plot_signatures(nmf_res, top_n=10)
+    exp_obj = plot_exposures(nmf_res, cluster=True, max_samples_per_fig=50)
+    coords, var_ratio, cluster_labels, pca_obj = plot_pca_samples(
+        nmf_res,
+        title="PCA of exposures",
+        cluster=True,
+    )
 
-    coords, var_ratio = compute_pca(nmf_res.exposures, n_components=2)
+    # Basic PCA checks unchanged
     assert coords.shape[1] == 2
     assert len(var_ratio) == 2
-
     coords.to_csv(pipeline_dir / "pca_coords.tsv", sep="\t")
     pd.Series(var_ratio, index=[f"PC{i+1}" for i in range(len(var_ratio))]).to_csv(
         pipeline_dir / "pca_explained_variance.tsv",
         sep="\t",
     )
 
-    ax_pca = plot_pca_samples(coords, title="PCA of exposures")
+    # Normalize to lists of Figures
+    sig_figs = to_figures(sig_obj)
+    exp_figs = to_figures(exp_obj['absolute'])
+    pca_figs = to_figures(pca_obj)
 
-    fig_sig.savefig(pipeline_dir / "plot_signatures.png", dpi=150)
-    fig_exp.savefig(pipeline_dir / "plot_exposures.png", dpi=150)
-    ax_pca.figure.savefig(pipeline_dir / "plot_pca.png", dpi=150)
+    # Save only the first figure of each type for the integration test
+    if sig_figs:
+        sig_figs[0].savefig(pipeline_dir / "plot_signatures.png", dpi=150)
+    if not exp_figs:
+        raise AssertionError("plot_exposures did not return any figures")
 
-    plt.close(fig_sig)
-    plt.close(fig_exp)
-    plt.close(ax_pca.figure)
+    # Save all exposure figures
+    if len(exp_figs) == 1:
+        # keep old filename for backward compatibility
+        exp_figs[0].savefig(pipeline_dir / "plot_exposures.png", dpi=150)
+    else:
+        for i, f in enumerate(exp_figs, start=1):
+            f.savefig(pipeline_dir / f"plot_exposures_{i}.png", dpi=150)
+
+    if pca_figs:
+        pca_figs[0].savefig(pipeline_dir / "plot_pca.png", dpi=150)
+
+    # Close all figures to avoid leaking resources
+    for fig in sig_figs + exp_figs + pca_figs:
+        plt.close(fig)
 
     # ------------------------------------------------------------------
     # 6) Save & reload NMF result (standard format)
@@ -203,7 +235,6 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
 
     assert (outdir / "signatures.tsv").is_file()
     assert (outdir / "exposures.tsv").is_file()
-    # metadata.json exists but will be ignored in hash manifest
     assert (outdir / "metadata.json").is_file()
 
     nmf_loaded = load_nmf_result(outdir)
@@ -216,9 +247,6 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     # ------------------------------------------------------------------
     # 7) Project a *new* VCF onto learned signatures
     # ------------------------------------------------------------------
-    if nmf_mod.nnls is None:
-        pytest.skip("scipy not installed; skipping NNLS projection part of integration test")
-
     vcf_files = sorted(Path(vcf_dir).glob("*.vcf*"))
     assert vcf_files, f"No VCF files found in {vcf_dir}"
     first_vcf = vcf_files[0]
@@ -254,12 +282,6 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     exposures_new.to_csv(pipeline_dir / "new_exposures_single_vcf.tsv", sep="\t")
 
     return pipeline_dir
-
-
-# ----------------------------------------------------------------------
-# Tests (class-based)
-# ----------------------------------------------------------------------
-
 
 class TestFullPipelineIntegration:
     @pytest.mark.integration

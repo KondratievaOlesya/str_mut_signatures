@@ -5,11 +5,12 @@ import hashlib
 import textwrap
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from str_mut_signatures.extract_tally.extract_mutations import (
     parse_info,
-    parse_repcn,
+    parse_copy_number,
     parse_vcf_files,
     process_vcf_to_rows,
 )
@@ -36,18 +37,18 @@ class TestHelpers:
         assert "FLAG" not in info
         assert info["RU"] == "A"
 
-    def test_parse_repcn_two_values(self):
-        a, b = parse_repcn("10,11")
+    def test_parse_copy_number_two_values(self):
+        a, b = parse_copy_number("10,11")
         assert a == "10"
         assert b == "11"
 
-    def test_parse_repcn_single_value(self):
-        a, b = parse_repcn("7")
+    def test_parse_copy_number_single_value(self):
+        a, b = parse_copy_number("7")
         assert a == "7"
         assert b == "7"  # homozygous assumption
 
-    def test_parse_repcn_more_than_two_values(self):
-        a, b = parse_repcn("5,6,7")
+    def test_parse_copy_number_more_than_two_values(self):
+        a, b = parse_copy_number("5,6,7")
         assert a == "."
         assert b == "."
 
@@ -265,9 +266,70 @@ class TestParseVCFFiles:
 
         actual_hash = file_hash(out_path)
 
-        EXPECTED_SHA256 = "2001f21b7618b1c2cd7d170348bde0a3"
+        EXPECTED_SHA256 = "4976bd5da202306d2b870154a99ead7f"
 
         # Temporary assertion so test fails clearly until you plug in hash
         assert (
             actual_hash == EXPECTED_SHA256
         ), f"SHA256 mismatch for {out_path}: {actual_hash} != {EXPECTED_SHA256}"
+
+
+class TestConSTRainVCFs:
+    """
+    Integration tests on single real VCFs from conSTRain.
+    """
+    def test_constrain_vcf_single(
+        self,
+        data_dir: str,
+        tmp_path: Path,
+    ):
+        """
+        This specifically checks that support for FORMAT/REPLEN works
+        end-to-end and that variants are parsed correctly.
+        """
+        vcf_path = Path(data_dir) / "constrain_example.vcf.gz"
+        assert vcf_path.exists(), f"Missing test file: {vcf_path}"
+
+        rows = process_vcf_to_rows(
+            vcf_path,
+            filter_by_pass=False,
+            filter_by_perfect=False,
+        )
+
+        # Basic checks
+        assert len(rows) > 0, "Expected at least one parsed variant from conSTRain VCF"
+
+        df = pd.DataFrame(rows)
+        expected_cols = {
+            "sample",
+            "tmp_id",
+            "tumor_allele_a",
+            "tumor_allele_b",
+            "normal_allele_a",
+            "normal_allele_b",
+            "end",
+            "period",
+            "ref",
+            "motif",
+            "genotype_separator",
+        }
+        assert expected_cols.issubset(df.columns)
+
+        # All alleles should be numeric strings
+        for col in ["tumor_allele_a", "tumor_allele_b", "normal_allele_a", "normal_allele_b"]:
+            assert df[col].map(str.isnumeric).all(), f"Non-numeric values in {col} for conSTRain VCF"
+
+        unique_seps = set(df["genotype_separator"].unique())
+        assert unique_seps.issubset({"|", "/"})
+
+        # RU/REF must not be empty
+        assert (df["motif"] != "").all()
+        assert (df["ref"] != "").all()
+
+        # Hash regression for this single file
+        out_path = tmp_path / "constrain_mutations.tsv"
+        df.to_csv(out_path, sep="\t", index=False)
+
+        actual_hash = file_hash(out_path)
+        EXPECTED_MD5 = "0903e4cc10aac5bc58068efc67692ed8"
+        assert actual_hash == EXPECTED_MD5

@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 as far as reasonably possible for a research codebase.
+## [0.3.0] - 2025-12-02
+
+### Added
+
+- **Motif normalization**
+
+  - Introduced `normalize_motif()` to standardize all repeat-unit (RU) motifs:
+
+    - Converts motifs to **uppercase**.
+    - Removes spaces and any non-letter characters.
+    - Canonicalizes motifs using **`GetCanonicalMotif`** from `trtools.utils.utils`.
+
+- **Support for multiple STR callers (GangSTR and conSTRain)**  
+    The VCF validator and mutation extractor now recognize and parse STR annotations from both tools:
+    - GangSTR (`FORMAT/REPCN`)
+    - conSTRain (`FORMAT/REPLEN`)
+        
+    
+    The parser automatically detects:
+    - caller type (`gangstr`, `constrain`, or `unknown`)
+    - correct copy-number field (`REPCN` or `REPLEN`)
+    - STR annotation presence via `INFO/RU` and `INFO/REF`.
+        
+- **Automatic extraction of STR allele counts**  
+    A unified `parse_copy_number()` replaces the old REPCN-specifi `parse_repcn` parser.  
+        
+- **New integration test** for real conSTRain VCF
+        
+- **Clustering support for PCA and exposure plots**  
+    A unified mechanism:
+    - automatically selects optimum number of clusters (`k`) using silhouette score
+    - groups samples visually and orders them within clusters
+    - exposes cluster labels in results
+        
+- **Enhanced exposure plotting (`plot_exposures`)**
+    - Pagination for large sample sets (`max_samples_per_fig`)
+    - Cluster-aware ordering (with visible gaps between clusters)
+    - Dual-plot mode:
+        - **absolute exposures**
+        - **proportional exposures** (stacked, normalized to 1)
+            
+- **Enhanced PCA plotting API**
+    - `plot_pca_samples()` is now the main high-level function:
+        - accepts `NMFResult` directly
+        - computes PCA internally
+        - optional clustering with cluster-based coloring
+            
+    - Returns:
+        - PCA coordinates
+        - variance explained
+        - cluster labels
+        - matplotlib axes
+            
+
+### **Deprecated**
+- `parse_repcn()`  
+    Replaced by the more general `parse_copy_number()`.
 
 ## [0.2.1] - 2025-11-20
 

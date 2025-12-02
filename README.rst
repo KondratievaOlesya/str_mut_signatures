@@ -12,19 +12,19 @@ projects new samples onto learned STR mutation signatures.
 Contents
 ========
 
-- Installation
-- Quick start
-- Input format
-- Somatic STR calls (tumor–normal)
-- Annotating standard VCFs
-- Matrix construction
-- Filtering mutation matrices
-- NMF signatures and projection
-- Command line interface
-- Python API
-- Output
-- Contributing
-- License
+- `Installation`_
+- `Quick start`_
+- `Input format`_
+- `Annotating standard VCFs`_
+- `Matrix construction`_
+- `Filtering mutation matrices`_
+- `NMF signatures and projection`_
+- `Visualization`_
+- `Command line interface`_
+- `Python API`_
+- `Output`_
+- `Contributing`_
+- `License`_
 
 
 Installation
@@ -59,6 +59,97 @@ Development installation
 
 Quick start
 ===========
+
+Python Library Usage
+--------------------
+
+Basic pipeline
+~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from str_mut_signatures import (
+        parse_vcf_files,
+        build_mutation_matrix,
+        filter_mutation_matrix,
+        run_nmf,
+        save_nmf_result,
+        load_nmf_result,
+        project_onto_signatures,
+        plot_exposures,
+        plot_pca_samples,
+    )
+
+    # 1) Parse annotated paired tumor–normal VCF files into a long table
+    mutations = parse_vcf_files("vcf_directory/")
+
+    # 2) Build a mutation count matrix
+    # ru:
+    #   None     -> ignore motif
+    #   "length" -> use only motif length (LEN1, LEN2, ...)
+    #   "ru"     -> use full repeat unit sequence (e.g. AT, AAT)
+    #   "AT"     -> AT-rich vs non-AT-rich classification
+    # ref_length:
+    #   include reference repeat length as a feature component
+    # change:
+    #   include tumor–normal repeat-length change
+    matrix = build_mutation_matrix(
+        mutations,
+        ru="length",
+        ref_length=True,
+        change=True,
+    )
+
+    # 3) Filter the matrix (e.g. manual thresholds)
+    matrix_filt, summary = filter_mutation_matrix(
+        matrix,
+        feature_method="manual",
+        min_feature_total=10,
+        min_samples_with_feature=3,
+        min_sample_total=0,
+    )
+
+    # 4) Run NMF
+    nmf_res = run_nmf(matrix_filt, n_signatures=5, random_state=11)
+
+    # Access signatures and exposures
+    signatures = nmf_res.signatures   # features x K
+    exposures  = nmf_res.exposures    # samples x K
+
+    # 4a) Visualize sample exposures to signatures
+    figs = plot_exposures(
+        nmf_res,
+        stacked=True,
+        max_samples_per_fig=40,  # paginate if many samples
+        cluster=True,            # cluster samples and order by cluster
+        max_clusters=6
+    )
+
+    # figs["absolute"]   -> list of figures with absolute exposures
+    # figs["proportion"] -> list of figures with exposures normalized per sample
+
+    # 4b) Visualize samples in PCA space based on exposures
+    coords, var_ratio, clusters, ax = plot_pca_samples(
+        nmf_res,
+        cluster=True,       # cluster in PCA space
+        max_clusters=6,
+    )
+
+    # coords   -> DataFrame with PC1, PC2, ...
+    # clusters -> array of cluster labels (or None if clustering disabled)
+    # ax       -> matplotlib Axes with the scatter plot
+    # var_ratio-> variance explained by PC1 and PC2
+
+    # 5) Save NMF result for reuse
+    save_nmf_result(nmf_res, "nmf_results")
+
+    # 6) Load NMF result and project new samples
+    nmf_loaded = load_nmf_result("nmf_results")
+    new_exposures = project_onto_signatures(
+        new_matrix=new_counts_df,
+        signatures=nmf_loaded.signatures,
+        method="nnls",
+    )
 
 Command Line
 ------------
@@ -122,81 +213,25 @@ This writes:
         --nmf-dir nmf_results \
         --out-exposures new_exposures.tsv
 
-
-Python Library Usage
---------------------
-
-Basic pipeline
-~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    from str_mut_signatures import (
-        parse_vcf_files,
-        build_mutation_matrix,
-        filter_mutation_matrix,
-        run_nmf,
-        save_nmf_result,
-        load_nmf_result,
-        project_onto_signatures,
-    )
-
-    # 1) Parse annotated paired tumor–normal VCF files into a long table
-    mutations = parse_vcf_files("vcf_directory/")
-
-    # 2) Build a mutation count matrix
-    # ru:
-    #   None     -> ignore motif
-    #   "length" -> use only motif length (LEN1, LEN2, ...)
-    #   "ru"     -> use full repeat unit sequence (e.g. AT, AAT)
-    #   "AT"     -> AT-rich vs non-AT-rich classification
-    # ref_length:
-    #   include reference repeat length as a feature component
-    # change:
-    #   include tumor–normal repeat-length change
-    matrix = build_mutation_matrix(
-        mutations,
-        ru="length",
-        ref_length=True,
-        change=True,
-    )
-
-    # 3) Filter the matrix (e.g. manual thresholds)
-    matrix_filt, summary = filter_mutation_matrix(
-        matrix,
-        feature_method="manual",
-        min_feature_total=10,
-        min_samples_with_feature=3,
-        min_sample_total=0,
-    )
-
-    # 4) Run NMF
-    nmf_res = run_nmf(matrix_filt, n_signatures=5, random_state=11)
-
-    # Access signatures and exposures
-    signatures = nmf_res.signatures   # features x K
-    exposures  = nmf_res.exposures    # samples x K
-
-    # 5) Save NMF result for reuse
-    save_nmf_result(nmf_res, "nmf_results")
-
-    # 6) Load NMF result and project new samples
-    nmf_loaded = load_nmf_result("nmf_results")
-    new_exposures = project_onto_signatures(
-        new_matrix=new_counts_df,
-        signatures=nmf_loaded.signatures,
-        method="nnls",
-    )
-
-
 Input format
 ============
 
 To be processed by ``str_mut_signatures``, VCF files must:
 
 1. Contain **paired samples** (normal and tumor) per record.
-2. Be annotated with STR-specific fields that describe the repeat unit and allele-level
-   repeat counts.
+2. Be annotated with STR-specific fields that describe the repeat motif and
+   **allele-level repeat copy numbers**.
+
+Supported sources
+-----------------
+
+``str_mut_signatures`` currently supports STR VCFs produced by:
+
+- `GangSTR  <https://github.com/gymreklab/GangSTR>`_
+- `conSTRain  <https://github.com/acg-team/ConSTRain>`_
+- VCFs annotated with the `strvcf_annotator  <https://github.com/acg-team/strvcf_annotator/>`_ tool
+
+as long as they satisfy the requirements below.
 
 Required structure
 ------------------
@@ -215,69 +250,60 @@ Required structure
   **INFO fields**
 
   - ``RU``: Repeat unit / motif (e.g. ``A``, ``AT``, ``AAT``).
-  - ``REF``: Reference repeat count (copy number of the motif in the reference genome)
-    or equivalent information if available.
+  - ``REF``: Reference repeat count (copy number of the motif in the reference genome).
 
-  **FORMAT fields**
+  **FORMAT fields (copy number)**
 
-  - ``REPCN``: Comma-separated repeat copy numbers for each allele in that sample.
+  One of the following per sample:
 
-Example schema
---------------
+  - ``REPCN``: Per-allele repeat copy number (used by GangSTR and ``strvcf_annotator``).
+  - ``REPLEN``: Per-allele repeat length in repeat units (used by conSTRain).
+
+  ``str_mut_signatures`` automatically detects which field is present and uses it
+  as the source of allele copy numbers.
+
+Example schemas
+---------------
+
+**GangSTR / strvcf_annotator-style**
 
 .. code-block:: text
 
     ##INFO=<ID=RU,Number=1,Type=String,Description="Repeat unit">
     ##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference repeat count">
     ##FORMAT=<ID=REPCN,Number=R,Type=Integer,Description="Per-allele repeat copy number">
-    #CHROM POS  ID REF ALT QUAL FILTER INFO        FORMAT   NORMAL   TUMOR
-    chr1   100 .  A   AT  .    .     RU=A;REF=10  REPCN    10,10    10,11
+    #CHROM POS  ID REF ALT QUAL FILTER INFO        FORMAT        NORMAL     TUMOR
+    chr1   100 .  A   AT  .    .     RU=A;REF=10  GT:REPCN      0/0:10,10  0/1:10,11
 
-From this, ``str_mut_signatures``:
+**conSTRain-style**
 
-- Compares NORMAL vs TUMOR ``REPCN``.
+.. code-block:: text
+
+    ##INFO=<ID=RU,Number=1,Type=String,Description="Repeat unit">
+    ##INFO=<ID=REF,Number=1,Type=Integer,Description="Reference repeat count">
+    ##FORMAT=<ID=REPLEN,Number=R,Type=Integer,Description="Per-allele repeat length in repeat units">
+    #CHROM POS  ID REF ALT QUAL FILTER INFO        FORMAT        NORMAL       TUMOR
+    chr1   100 .  A   AT  .    .     RU=A;REF=10  GT:REPLEN     0/0:10,10    0/1:10,11
+
+From such records, ``str_mut_signatures``:
+
+- Extracts **allele-level repeat copy numbers** from ``REPCN`` or ``REPLEN``.
+- Compares NORMAL vs TUMOR allele counts at each locus.
 - Identifies loci where tumor repeat copy number differs from normal.
 - Encodes the net repeat-length **change** as tumor–normal (e.g. ``+1``).
-- Uses only these somatic events for downstream count matrices and signatures.
-
-
-Somatic STR calls (tumor–normal)
-================================
-
-Key points:
-
-- The package focuses on **somatic** STR mutations.
-- For each locus, tumor and normal alleles are compared:
-  
-  - If there is no difference between tumor and normal (based on ``REPCN``), the
-    site is ignored.
-  - If there is a difference, a somatic STR event is recorded.
-
-- The ``change`` feature encodes **tumor–normal** repeat-length difference, not
-  reference–sample:
-
-  .. code-block:: text
-
-      change = f(REPCN_tumor, REPCN_normal)
-
-- Heterozygous states and phasing are handled internally:
-  
-  - If **phased genotypes** are present (``GT`` uses ``|``), allele-specific changes
-    are used when possible.
-  - If **unphased** or no phasing information is available (``/`` or missing),
-    a combined per-locus change (total tumor vs total normal) is used.
+- Uses only these somatic STR events for downstream count matrices and signature extraction.
 
 
 Annotating standard VCFs
 ========================
 
-If your VCFs lack ``RU``, ``REF``, or ``REPCN``, you can annotate them using
-the companion tool ``strvcf_annotator``:
+If your VCFs lack ``RU``, ``REF``, or copy-number fields, you can annotate them using
+the tool ``strvcf_annotator``:
 
 - Takes standard VCF + STR reference.
 - Produces STR-annotated VCFs compatible with ``str_mut_signatures``.
 
-For details see: `strvcf_annotator  <https://github.com/acg-team/strvcf_annotator/>`_. 
+For details see: `strvcf_annotator  <https://github.com/acg-team/strvcf_annotator/>`_.
 
 
 Matrix construction
@@ -301,17 +327,17 @@ you can select:
 - ``ru``:
 
   - ``None``:
-    
+
     - Do not use motif information.
 
   - ``"length"``:
-    
+
     - Use only motif length.
     - Features start with ``LEN{motif_length}``.
     - Example: ``LEN1_10_+1`` for motif length 1, REF=10, change=+1.
 
   - ``"ru"``:
-    
+
     - Use full repeat unit sequence.
     - Example: ``A_10_+1``, ``AT_20_-2``.
 
@@ -324,8 +350,6 @@ you can select:
 - ``ref_length`` (bool):
 
   - If ``True``, include the reference repeat length as part of the feature key.
-  - For phased genotypes, this is per-allele normal repeat count.
-  - For unphased genotypes, this is the combined normal repeat count.
 
 - ``change`` (bool):
 
@@ -503,6 +527,105 @@ new samples (e.g. a new cohort or single sample):
 Rows in ``new_exposures`` are new samples, columns are signatures.
 
 
+Visualization
+=============
+
+Overview
+--------
+
+After fitting NMF, ``str_mut_signatures`` provides convenience functions to:
+
+- **Visualize signature exposures per sample** (bar plots).
+- **Visualize samples in PCA space** (scatter plots of PC1 vs PC2).
+
+These plots are useful for:
+
+- Checking whether signatures separate known biological groups.
+- Detecting outlier samples or batch effects.
+- Inspecting clusters of samples with similar STR mutation patterns.
+- Communicating results in figures for manuscripts or presentations.
+
+Exposure bar plots
+------------------
+
+Use ``plot_exposures`` to visualize how much each sample uses each signature.
+
+Key features:
+
+- Stacked or grouped bars.
+- Optional **automatic clustering** of samples, with samples ordered by cluster.
+- Optional pagination when there are many samples.
+
+.. code-block:: python
+
+    from str_mut_signatures.viz import plot_exposures
+
+    # nmf_res is the result of run_nmf(...)
+    figs = plot_exposures(
+        nmf_res,
+        stacked=True,
+        max_samples_per_fig=40,  # paginate if many samples
+        cluster=True,            # automatically cluster samples
+        max_clusters=6,
+    )
+
+    # figs["absolute"]   -> list of figures with absolute exposures
+    # figs["proportion"] -> list of figures with exposures normalized per sample
+
+Typical use:
+
+- **Absolute exposures**: how much each signature contributes in raw counts.
+- **Proportions**: composition of each sample (bars sum to 1), easier for comparing
+  relative contributions across samples.
+
+PCA of samples
+--------------
+
+Use ``plot_pca_samples`` to see how samples cluster in PCA space based on their
+exposures (or any other sample x feature matrix).
+
+Key features:
+
+- Takes ``NMFResult`` directly and computes PCA internally.
+- Optional clustering in PCA space with automatic selection of the number of clusters.
+- Colors points either by inferred clusters or by user-provided labels (e.g. MSI vs MSS).
+
+.. code-block:: python
+
+    from str_mut_signatures.viz import plot_pca_samples
+
+    # PCA on exposures, color by automatically inferred clusters
+    coords, var_ratio, clusters, ax = plot_pca_samples(
+        nmf_res,
+        cluster=True,
+        max_clusters=6,
+    )
+
+    # coords      -> DataFrame with PC1, PC2, ...
+    # var_ratio   -> fraction of variance explained by each PC
+    # clusters    -> array of cluster labels (or None if clustering disabled)
+    # ax          -> matplotlib Axes with the scatter plot
+
+You can also color points by external labels:
+
+.. code-block:: python
+
+    labels = clinical_df.loc[coords.index, "MSI_status"]  # e.g. "MSS", "MSI"
+    coords, var_ratio, clusters, ax = plot_pca_samples(
+        nmf_res,
+        labels=labels,
+        color_by="labels",   # explicitly color by MSI_status
+        cluster=False,
+    )
+
+Why use PCA plots?
+
+- To see whether samples separate according to known phenotypes
+  (e.g. MSI vs MSS, TMB-high vs TMB-low).
+- To detect subgroups that may correspond to novel STR-driven biology.
+- To identify outliers or potential QC issues (samples far away from the main cloud).
+
+
 Command line interface
 ======================
 
@@ -637,6 +760,21 @@ Main functions
 - ``save_nmf_result(result, outdir)`` / ``load_nmf_result(outdir)`` for persistence.
 - ``project_onto_signatures(new_matrix, signatures, method="nnls")`` → new exposures.
 
+Visualization helpers
+---------------------
+
+.. code-block:: python
+
+    from str_mut_signatures.viz import (
+        plot_exposures,
+        plot_pca_samples,
+    )
+
+- ``plot_exposures(nmf_result, ...)`` → dict of lists of matplotlib Figures
+  (absolute and proportional exposures).
+- ``plot_pca_samples(nmf_result, ...)`` → PCA coordinates, variance explained,
+  cluster labels, and a matplotlib Axes object.
+
 
 Output
 ======
@@ -647,6 +785,7 @@ Typical outputs include:
 - **Filtered matrices** (TSV): reduced feature space for robust NMF.
 - **NMF signatures** and **exposures** (TSV).
 - **Metadata** (JSON) describing NMF runs and parameters.
+- **Figures** (from visualization helpers) for exploratory analysis and reporting.
 
 These can be used to:
 
@@ -654,6 +793,7 @@ These can be used to:
 - Compare STR signatures across cohorts.
 - Associate STR signatures with clinical or genomic features.
 - Apply learned STR signatures to new datasets.
+- Visualize and communicate STR mutation signatures in manuscripts and presentations.
 
 
 Contributing

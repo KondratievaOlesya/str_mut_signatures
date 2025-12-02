@@ -34,7 +34,7 @@ from .nmf.plot import (
 
 __author__ = "Olesia Kondrateva"
 __email__ = "xkdnoa@gmail.com"
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 __all__ = [
     # VCF → mutations
