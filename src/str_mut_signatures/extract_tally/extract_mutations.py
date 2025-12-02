@@ -4,9 +4,33 @@ import gzip
 from pathlib import Path
 
 import pandas as pd
+from trtools.utils.utils import GetCanonicalMotif
 
 from .validate import validate_vcf
 
+
+def normalize_motif(raw_motif: str | None) -> str:
+    """
+    Normalize motif string:
+
+    - convert to uppercase
+    - remove spaces and non-letter characters
+    - canonicalize using trtools.utils.utils.GetCanonicalMotif
+
+    Returns empty string if nothing usable is left.
+    """
+    if raw_motif is None or pd.isna(raw_motif):
+        return ""
+
+    # Uppercase and keep only letters (A–Z)
+    cleaned = "".join(ch for ch in str(raw_motif).upper() if ch.isalpha())
+
+    if not cleaned:
+        return ""
+
+    # Canonical motif
+    canonical = GetCanonicalMotif(cleaned)
+    return canonical
 
 def parse_info(info_field: str) -> dict:
     info = {}
@@ -17,15 +41,15 @@ def parse_info(info_field: str) -> dict:
     return info
 
 
-def parse_repcn(repcn_str: str):
+def parse_copy_number(cn_str: str):
     """
-    Parse REPCN field like "10,11" into two alleles (a, b).
+    Parse copy-number field (REPCN / REPLEN) like "10,11" into two alleles (a, b).
 
     - If single value: treat as homozygous (a == b).
     - If two values: return them as-is.
     - If more than two: return '.', '.' for now (caller can skip).
     """
-    parts = repcn_str.split(",")
+    parts = cn_str.split(",")
     if len(parts) == 2:
         return parts[0], parts[1]
     elif len(parts) == 1:
@@ -40,6 +64,7 @@ def open_maybe_gzip(path: str | Path):
         return gzip.open(path, "rt")
     return open(path)
 
+
 def process_vcf_to_rows(
     path: str | Path,
     *,
@@ -48,6 +73,11 @@ def process_vcf_to_rows(
 ):
     """
     Parse a single STR-annotated VCF and return a list of dict rows.
+
+    Supports:
+    - GangSTR: uses FORMAT/REPCN as copy number
+    - conSTRain: uses FORMAT/REPLEN as copy number
+    - VCF annotated with strvcf_annotator (INFO/RU, INFO/REF, FORMAT/REPCN)
 
     Filtering options
     -----------------
@@ -72,9 +102,19 @@ def process_vcf_to_rows(
     if not vres.has_str_annotations:
         raise ValueError(
             f"VCF '{path}' is missing required STR annotations "
-            f"(INFO/RU, INFO/REF, FORMAT/REPCN). "
-            f"Annotate it with 'strvcf_annotator' before using str_mut_signatures."
+            f"(INFO/RU, INFO/REF, and either FORMAT/REPCN or FORMAT/REPLEN). "
+            f"Annotate it with 'strvcf_annotator' or use a supported STR caller "
+            f"(GangSTR / conSTRain) before using str_mut_signatures."
         )
+
+    if vres.copy_number_field is None:
+        # Should not happen if has_str_annotations is True, but keep it explicit
+        raise ValueError(
+            f"VCF '{path}' does not define a supported copy-number FORMAT field "
+            f"(expected REPCN for GangSTR or REPLEN for conSTRain)."
+        )
+
+    cn_field = vres.copy_number_field  # "REPCN" or "REPLEN"
 
     if not vres.has_paired_samples:
         raise ValueError(
@@ -95,6 +135,7 @@ def process_vcf_to_rows(
     non_perfect_count = 0
     written_variants = 0
 
+    # We are using filename as sample identifier
     sample_name = path.name.replace(".vcf", "").replace(".vcf.gz", "")
 
     header_cols = None
@@ -134,10 +175,11 @@ def process_vcf_to_rows(
 
             info = parse_info(cols[7])
 
-            # PERFECT calls only (optional)
+            # PERFECT calls only (optional, only applies if PERFECT exists)
             if filter_by_perfect and info.get("PERFECT", "") == "FALSE":
                 non_perfect_count += 1
                 continue
+
             chrom = cols[0]
             pos = cols[1]
             tmp_id = f"{chrom}_{pos}"
@@ -146,15 +188,15 @@ def process_vcf_to_rows(
             period = info.get("PERIOD", "")
             ref = info.get("REF", "")
             motif = info.get("RU", "")
-
+            motif = normalize_motif(motif)
             # FORMAT & samples
             if format_fields is None:
                 format_fields = cols[8].split(":")
 
-            def get_repcn(sample_str: str):
+            def get_copy_number(sample_str: str):
                 values = sample_str.split(":")
                 fmt = dict(zip(format_fields, values))
-                return parse_repcn(fmt.get("REPCN", ".,."))
+                return parse_copy_number(fmt.get(cn_field, ".,."))
 
             try:
                 normal_sample = cols[normal_idx]
@@ -165,10 +207,10 @@ def process_vcf_to_rows(
                     f"columns at indices 9 and 10."
                 )
 
-            n_a, n_b = get_repcn(normal_sample)
-            t_a, t_b = get_repcn(tumor_sample)
+            n_a, n_b = get_copy_number(normal_sample)
+            t_a, t_b = get_copy_number(tumor_sample)
 
-            # Require numeric REPCN for all alleles; otherwise skip variant
+            # Require numeric copy numbers for all alleles; otherwise skip variant
             if not (n_a.isnumeric() and n_b.isnumeric() and t_a.isnumeric() and t_b.isnumeric()):
                 continue
 
@@ -219,6 +261,9 @@ def parse_vcf_files(
 ) -> pd.DataFrame:
     """
     Process all VCF(.gz) files in a directory into a single DataFrame.
+
+    Supports GangSTR and conSTRain STR-annotated VCFs, as well as
+    VCFs annotated with `strvcf_annotator`.
 
     If a file causes an error, it is skipped and a message is printed.
 

@@ -22,6 +22,7 @@ requirements = [
     'numpy>=1.24',
     'scikit-learn>=1.3',
     'matplotlib>=3.7',
+    'trtools'
 ]
 
 test_requirements = [

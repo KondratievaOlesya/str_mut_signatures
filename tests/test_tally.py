@@ -67,7 +67,7 @@ MATRIX_CASES = [
         "matrix_ru_seq_ref_change",
         {"ru": "ru", "ref_length": True, "change": True},
         r"^[^_]+_\d+_[+-]\d+$",
-        "28707c0482b8ac87a62f25d9d9b2e54e",
+        "51c062035ebf6a3c19ac295fa085b104",
     ),
     (
         "matrix_no_ru_ref_change",
@@ -85,7 +85,7 @@ MATRIX_CASES = [
         "matrix_ru_seq_change_only",
         {"ru": "ru", "ref_length": False, "change": True},
         r"^[^_]+_[+-]\d+$",
-        "5e397b7760641ef785e490030ac38bac",
+        "10a7c3cf0cd73b68e81744aa746a19d6",
     ),
 ]
 
