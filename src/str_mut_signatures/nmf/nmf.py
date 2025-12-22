@@ -10,7 +10,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from scipy.optimize import nnls
+from sklearn.cluster import KMeans
 from sklearn.decomposition import NMF
+from sklearn.metrics import silhouette_score
 
 try:
     # Python 3.11+
@@ -44,8 +46,114 @@ class NMFResult:
 
     signatures: pd.DataFrame
     exposures: pd.DataFrame
+    groups: pd.DataFrame
     model_params: dict[str, Any]
 
+def make_groups_df(
+    sample_index: pd.Index,
+    cluster_labels: np.ndarray | None = None,
+) -> pd.DataFrame:
+    """
+    Create a groups DataFrame indexed by samples.
+
+    Always returns a DataFrame with at least:
+      - group: string labels, default "1" for all samples
+
+    If cluster_labels is provided, overwrites 'group' with cluster IDs (as strings).
+    """
+    groups = pd.DataFrame(index=sample_index)
+    groups["group"] = "1"
+
+    if cluster_labels is not None:
+        if len(cluster_labels) != len(sample_index):
+            raise ValueError(
+                "cluster_labels length must match number of samples "
+                f"({len(cluster_labels)} != {len(sample_index)})."
+            )
+        groups["group"] = pd.Series(cluster_labels, index=sample_index).astype(str)
+
+    return groups
+
+def add_labels_to_groups(
+    groups_df: pd.DataFrame,
+    labels: pd.Series | pd.DataFrame,
+    *,
+    label_col: str = "label",
+    allow_missing: bool = True,
+) -> pd.DataFrame:
+    """
+    Add external labels to groups_df by index (sample id).
+
+    - labels can be:
+        * Series (index=samples)
+        * DataFrame (index=samples) with one column, or with `label_col`.
+    - Ensures the merged labels correspond to the correct sample.
+    - Preserves all samples in groups_df.
+    """
+    out = groups_df.copy()
+
+    if isinstance(labels, pd.Series):
+        lab = labels.rename(label_col)
+    elif isinstance(labels, pd.DataFrame):
+        if label_col in labels.columns:
+            lab = labels[label_col]
+        elif labels.shape[1] == 1:
+            lab = labels.iloc[:, 0].rename(label_col)
+        else:
+            raise ValueError(
+                f"labels DataFrame must have column '{label_col}' or exactly one column."
+            )
+    else:
+        raise TypeError("labels must be a pandas Series or DataFrame.")
+
+    # Align by index (sample id)
+    out[label_col] = lab.reindex(out.index)
+
+    if not allow_missing and out[label_col].isna().any():
+        missing = out.index[out[label_col].isna()]
+        raise ValueError(
+            f"Missing labels for {len(missing)} samples (first 10): {missing[:10].tolist()}"
+        )
+
+    return out
+
+def cluster_samples(
+    exposures: pd.DataFrame,
+    max_clusters: int = 6,
+    random_state: int | None = 0,
+) -> np.ndarray | None:
+    """
+    Cluster samples using KMeans and select best k via silhouette score.
+    Returns an array of cluster labels (0..k-1) in the same order as `exposures.index`,
+    or None if clustering is not possible.
+    """
+    n_samples = exposures.shape[0]
+    if n_samples < 3:
+        return None
+
+    X = exposures.to_numpy(dtype=float)
+    best_k = None
+    best_score = -np.inf
+    best_labels = None
+
+    for k in range(2, min(max_clusters, n_samples - 1) + 1):
+        km = KMeans(n_clusters=k, n_init="auto", random_state=random_state)
+        labels = km.fit_predict(X)
+
+        if len(np.unique(labels)) < 2:
+            continue
+
+        try:
+            score = silhouette_score(X, labels)
+        except ValueError:
+            continue
+
+        if score > best_score:
+            best_score = score
+            best_k = k
+            best_labels = labels
+
+    return best_labels if best_k is not None else None
 
 def validate_input_matrix(matrix: pd.DataFrame) -> np.ndarray:
     """
@@ -85,6 +193,7 @@ def run_nmf(
     alpha_W: float = 0.0,
     alpha_H: float = 0.0,
     l1_ratio: float = 0.0,
+    max_clusters: int = 1  # <=1 means "no clustering"
 ) -> NMFResult:
     """
     Run NMF decomposition on a STR mutation count matrix.
@@ -135,6 +244,15 @@ def run_nmf(
         columns=signature_labels,
     )
 
+    cluster_labels = None
+    if max_clusters is not None and max_clusters > 1:
+        cluster_labels = cluster_samples(
+            exposures_df,
+            max_clusters=max_clusters,
+            random_state=random_state,
+        )
+    groups_df = make_groups_df(exposures_df.index, cluster_labels=cluster_labels)
+
     model_params: dict[str, Any] = {
         "n_signatures": n_signatures,
         "init": init,
@@ -146,13 +264,16 @@ def run_nmf(
         "reconstruction_err_": float(getattr(model, "reconstruction_err_", np.nan)),
         "n_iter_": int(getattr(model, "n_iter_", -1)),
         "format_version": FORMAT_VERSION,
+        "max_clusters": int(max_clusters) if max_clusters is not None else None,
+        "n_groups": int(groups_df["group"].nunique()),
         "created_at": datetime.now(UTC).isoformat(),
     }
 
     return NMFResult(
         signatures=signatures_df,
         exposures=exposures_df,
-        model_params=model_params,
+        groups=groups_df,
+        model_params=model_params
     )
 
 # ---------------------------------------------------------------------------
@@ -174,9 +295,11 @@ def save_nmf_result(result: NMFResult, outdir: str | Path) -> None:
     sig_path = outpath / "signatures.tsv"
     exp_path = outpath / "exposures.tsv"
     meta_path = outpath / "metadata.json"
+    groups_path = outpath / "groups.tsv"
 
     result.signatures.to_csv(sig_path, sep="\t")
     result.exposures.to_csv(exp_path, sep="\t")
+    result.groups.to_csv(groups_path, sep="\t")
 
     # Add a bit of structural metadata
     metadata = dict(result.model_params)
@@ -185,6 +308,7 @@ def save_nmf_result(result: NMFResult, outdir: str | Path) -> None:
     metadata["exposures_shape"] = list(result.exposures.shape)
     metadata["signature_columns"] = list(result.signatures.columns)
     metadata["exposure_columns"] = list(result.exposures.columns)
+    metadata["groups_columns"] = list(result.groups.columns)
 
     meta_path.write_text(json.dumps(metadata, indent=2))
 
@@ -198,6 +322,7 @@ def load_nmf_result(outdir: str | Path) -> NMFResult:
     sig_path = outpath / "signatures.tsv"
     exp_path = outpath / "exposures.tsv"
     meta_path = outpath / "metadata.json"
+    groups_path = outpath / "groups.tsv"
 
     if not sig_path.is_file():
         raise FileNotFoundError(f"Missing signatures file: {sig_path}")
@@ -220,6 +345,17 @@ def load_nmf_result(outdir: str | Path) -> NMFResult:
             RuntimeWarning, stacklevel=2,
         )
 
+    # Groups: load if present; otherwise default to "1"
+    if groups_path.is_file():
+        groups = pd.read_csv(groups_path, sep="\t", index_col=0)
+        # enforce alignment
+        groups = groups.reindex(exposures.index)
+        if "group" not in groups.columns:
+            groups["group"] = "1"
+        groups["group"] = groups["group"].fillna("1").astype(str)
+    else:
+        groups = make_groups_df(exposures.index)
+
     if "signatures_shape" in metadata:
         expected = tuple(metadata["signatures_shape"])
         if signatures.shape != expected:
@@ -241,6 +377,7 @@ def load_nmf_result(outdir: str | Path) -> NMFResult:
     return NMFResult(
         signatures=signatures,
         exposures=exposures,
+        groups=groups,
         model_params=metadata,
     )
 
@@ -248,8 +385,6 @@ def load_nmf_result(outdir: str | Path) -> NMFResult:
 # ---------------------------------------------------------------------------
 # Projection of new data onto existing signatures
 # ---------------------------------------------------------------------------
-
-
 def validate_projection_inputs(
     new_matrix: pd.DataFrame,
     signatures: pd.DataFrame,

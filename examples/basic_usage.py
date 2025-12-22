@@ -126,6 +126,7 @@ def run_full_pipeline(vcf_dir: str | Path, outdir: str | Path, n_signatures: int
         init="nndsvd",
         max_iter=200,
         random_state=0,
+        max_clusters = 6
     )
 
     print("NMF finished.")
@@ -154,13 +155,14 @@ def run_full_pipeline(vcf_dir: str | Path, outdir: str | Path, n_signatures: int
 
     fig_exp = plot_exposures(nmf_loaded)
     fig_exp_path = outdir / "exposures.png"
-    fig_exp.savefig(fig_exp_path, bbox_inches="tight")
-    plt.close(fig_exp)
+    fig_exp["absolute"][0].savefig(outdir / "exposure_absolute.png", bbox_inches="tight")
+    fig_exp["proportion"][0].savefig(outdir / "exposure_proportion.png", bbox_inches="tight")
+    plt.close(fig_exp["absolute"][0])
+    plt.close(fig_exp["proportion"][0])
 
-    coords, var_ratio = compute_pca(nmf_loaded.exposures, n_components=2)
+
+    coords, var_ratio, ax_pca = plot_pca_samples(nmf_loaded, title="PCA of NMF exposures")
     print(f"PCA explained variance ratio: {var_ratio}")
-
-    ax_pca = plot_pca_samples(coords, title="PCA of NMF exposures")
     fig_pca = ax_pca.figure
     fig_pca_path = outdir / "pca_exposures.png"
     fig_pca.savefig(fig_pca_path, bbox_inches="tight")

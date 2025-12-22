@@ -78,6 +78,7 @@ Basic pipeline
         project_onto_signatures,
         plot_exposures,
         plot_pca_samples,
+        plot_signatures,
     )
 
     # 1) Parse annotated paired tumor–normal VCF files into a long table
@@ -110,35 +111,38 @@ Basic pipeline
     )
 
     # 4) Run NMF
-    nmf_res = run_nmf(matrix_filt, n_signatures=5, random_state=11)
+    # Optional clustering is performed here and stored in nmf_res.groups
+    nmf_res = run_nmf(
+        matrix_filt, 
+        n_signatures=5, 
+        random_state=11, 
+        max_clusters=4 # <= 1 disables clustering
+    )
 
     # Access signatures and exposures
     signatures = nmf_res.signatures   # features x K
     exposures  = nmf_res.exposures    # samples x K
+    groups     = nmf_res.groups       # samples x 1 ("group")
 
-    # 4a) Visualize sample exposures to signatures
+    # 4a) Plot mutation signatures
+    fig = plot_signatures(nmf_res, top_n=20)
+
+    # 4b) Visualize sample exposures to signatures (ordered by group, then total exposure)
     figs = plot_exposures(
         nmf_res,
         stacked=True,
         max_samples_per_fig=40,  # paginate if many samples
-        cluster=True,            # cluster samples and order by cluster
-        max_clusters=6
     )
 
     # figs["absolute"]   -> list of figures with absolute exposures
     # figs["proportion"] -> list of figures with exposures normalized per sample
 
-    # 4b) Visualize samples in PCA space based on exposures
-    coords, var_ratio, clusters, ax = plot_pca_samples(
-        nmf_res,
-        cluster=True,       # cluster in PCA space
-        max_clusters=6,
-    )
+    # 4c) Visualize samples in PCA space based on exposures (colored by stored groups)
+    coords, var_ratio, ax = plot_pca_samples(nmf_res)
 
     # coords   -> DataFrame with PC1, PC2, ...
-    # clusters -> array of cluster labels (or None if clustering disabled)
-    # ax       -> matplotlib Axes with the scatter plot
     # var_ratio-> variance explained by PC1 and PC2
+    # ax       -> matplotlib Axes with the scatter plot
 
     # 5) Save NMF result for reuse
     save_nmf_result(nmf_res, "nmf_results")
@@ -553,20 +557,20 @@ Use ``plot_exposures`` to visualize how much each sample uses each signature.
 Key features:
 
 - Stacked or grouped bars.
-- Optional **automatic clustering** of samples, with samples ordered by cluster.
 - Optional pagination when there are many samples.
+- Samples are ordered by:
+  1. group (ascending)
+  2. total exposure within each group (descending)
 
 .. code-block:: python
 
-    from str_mut_signatures.viz import plot_exposures
+    from str_mut_signatures import plot_exposures
 
     # nmf_res is the result of run_nmf(...)
     figs = plot_exposures(
         nmf_res,
         stacked=True,
         max_samples_per_fig=40,  # paginate if many samples
-        cluster=True,            # automatically cluster samples
-        max_clusters=6,
     )
 
     # figs["absolute"]   -> list of figures with absolute exposures
@@ -578,6 +582,29 @@ Typical use:
 - **Proportions**: composition of each sample (bars sum to 1), easier for comparing
   relative contributions across samples.
 
+Signature plots
+---------------
+
+Use ``plot_signatures`` to visualize STR mutation signatures.
+
+Each signature is shown as a bar plot of its top contributing features.
+
+.. code-block:: python
+
+    from str_mut_signatures import plot_signatures
+
+    fig = plot_signatures(
+        nmf_res,
+        top_n=25,
+    )
+
+This is useful for:
+
+- Interpreting biological meaning of signatures
+- Comparing mutation patterns across signatures
+- Selecting signatures for downstream analysis
+
+
 PCA of samples
 --------------
 
@@ -587,44 +614,34 @@ exposures (or any other sample x feature matrix).
 Key features:
 
 - Takes ``NMFResult`` directly and computes PCA internally.
-- Optional clustering in PCA space with automatic selection of the number of clusters.
-- Colors points either by inferred clusters or by user-provided labels (e.g. MSI vs MSS).
+- Samples are colored by ``NMFResult.groups["group"]``
 
 .. code-block:: python
 
-    from str_mut_signatures.viz import plot_pca_samples
-
-    # PCA on exposures, color by automatically inferred clusters
-    coords, var_ratio, clusters, ax = plot_pca_samples(
-        nmf_res,
-        cluster=True,
-        max_clusters=6,
-    )
+    from str_mut_signatures import plot_pca_samples
+    # PCA on exposures, color by "group"
+    coords, var_ratio, ax = plot_pca_samples(nmf_res)
 
     # coords      -> DataFrame with PC1, PC2, ...
     # var_ratio   -> fraction of variance explained by each PC
-    # clusters    -> array of cluster labels (or None if clustering disabled)
     # ax          -> matplotlib Axes with the scatter plot
-
-You can also color points by external labels:
-
-.. code-block:: python
-
-    labels = clinical_df.loc[coords.index, "MSI_status"]  # e.g. "MSS", "MSI"
-    coords, var_ratio, clusters, ax = plot_pca_samples(
-        nmf_res,
-        labels=labels,
-        color_by="labels",   # explicitly color by MSI_status
-        cluster=False,
-    )
 
 Why use PCA plots?
 
 - To see whether samples separate according to known phenotypes
-  (e.g. MSI vs MSS, TMB-high vs TMB-low).
 - To detect subgroups that may correspond to novel STR-driven biology.
 - To identify outliers or potential QC issues (samples far away from the main cloud).
 
+Using custom groups
+-------------------
+
+You can replace or augment groups manually:
+
+.. code-block:: python
+
+    nmf_res.groups["group"] = clinical_df.loc[nmf_res.exposures.index, "MSI_status"]
+
+All plotting functions will automatically use the updated groups.
 
 Command line interface
 ======================
@@ -765,16 +782,20 @@ Visualization helpers
 
 .. code-block:: python
 
-    from str_mut_signatures.viz import (
+    from str_mut_signatures import (
         plot_exposures,
         plot_pca_samples,
+        plot_signatures,
     )
 
-- ``plot_exposures(nmf_result, ...)`` → dict of lists of matplotlib Figures
-  (absolute and proportional exposures).
-- ``plot_pca_samples(nmf_result, ...)`` → PCA coordinates, variance explained,
-  cluster labels, and a matplotlib Axes object.
+- ``plot_signatures(result, ...)``  
+  Plot STR mutation signatures (feature loadings).
 
+- ``plot_exposures(result, ...)``  
+  Plot per-sample exposures, ordered and grouped using ``result.groups``.
+
+- ``plot_pca_samples(result, ...)``  
+  PCA of samples, colored by ``result.groups``.
 
 Output
 ======

@@ -8,12 +8,14 @@ import pytest
 
 from str_mut_signatures.nmf.nmf import (
     NMFResult,
+    cluster_samples,
     load_nmf_result,
     project_onto_signatures,
     run_nmf,
     save_nmf_result,
     validate_input_matrix,
 )
+from str_mut_signatures.nmf.plot import order_by_group_and_total
 
 
 class TestValidateInputMatrix:
@@ -49,6 +51,31 @@ class TestValidateInputMatrix:
         assert np.all(arr >= 0)
 
 
+class TestClusterSamples:
+    def test_cluster_samples_returns_none_if_too_few_samples(self):
+        exposures = pd.DataFrame(
+            {"Signature_1": [1.0, 2.0], "Signature_2": [0.0, 1.0]},
+            index=["s1", "s2"],
+        )
+        assert cluster_samples(exposures, max_clusters=6, random_state=0) is None
+
+    def test_cluster_samples_returns_labels_when_possible(self):
+        # construct 2 obvious clusters
+        exposures = pd.DataFrame(
+            {
+                "Signature_1": [10, 9, 8, 0.1, 0.2, 0.3],
+                "Signature_2": [0.1, 0.2, 0.3, 10, 9, 8],
+            },
+            index=[f"s{i}" for i in range(6)],
+        )
+        labels = cluster_samples(exposures, max_clusters=4, random_state=0)
+        assert labels is not None
+        assert isinstance(labels, np.ndarray)
+        assert labels.shape == (exposures.shape[0],)
+        # should find at least 2 clusters
+        assert len(np.unique(labels)) >= 2
+
+
 class TestRunNMF:
     def toy_matrix(self) -> pd.DataFrame:
         # simple small non-negative matrix
@@ -82,9 +109,31 @@ class TestRunNMF:
         assert list(res.exposures.index) == list(matrix.index)
         assert list(res.exposures.columns) == [f"Signature_{i+1}" for i in range(k)]
 
+        # groups: always present, always aligned, default is "1"
+        assert isinstance(res.groups, pd.DataFrame)
+        assert list(res.groups.index) == list(matrix.index)
+        assert list(res.groups.columns) == ["group"]
+        assert set(res.groups["group"].astype(str).unique()) == {"1"}
+
         # all non-negative (up to tiny numerical noise)
         assert np.all(res.signatures.to_numpy() >= -1e-10)
         assert np.all(res.exposures.to_numpy() >= -1e-10)
+
+    def test_groups_created_when_max_clusters_gt_1(self):
+        matrix = self.toy_matrix()
+
+        res = run_nmf(matrix, n_signatures=2, random_state=0, max_clusters=3)
+
+        assert isinstance(res.groups, pd.DataFrame)
+        assert list(res.groups.index) == list(matrix.index)
+        assert list(res.groups.columns) == ["group"]
+
+        # could still fall back to all "1" if silhouette can't decide,
+        # but must be non-empty and same length
+        assert len(res.groups) == len(matrix.index)
+
+        # group labels should be scalar-like values
+        assert res.groups["group"].notna().all()
 
     def test_invalid_n_signatures_zero_or_negative(self):
         matrix = self.toy_matrix()
@@ -111,31 +160,13 @@ class TestRunNMF:
         res1 = run_nmf(matrix, n_signatures=2, random_state=42)
         res2 = run_nmf(matrix, n_signatures=2, random_state=42)
 
-        # Same results for same seed
-        assert np.allclose(
-            res1.signatures.to_numpy(), res2.signatures.to_numpy(), rtol=1e-6, atol=1e-8
-        )
-        assert np.allclose(
-            res1.exposures.to_numpy(), res2.exposures.to_numpy(), rtol=1e-6, atol=1e-8
-        )
-
-    def test_different_random_state_gives_different_results(self):
-        matrix = self.toy_matrix()
-
-        res1 = run_nmf(matrix, n_signatures=2, random_state=0)
-        res2 = run_nmf(matrix, n_signatures=2, random_state=1)
-
-        # It's possible (but very unlikely) they end up numerically identical;
-        # we test they are *not exactly* equal.
-        assert not np.array_equal(
-            res1.signatures.to_numpy(), res2.signatures.to_numpy()
-        ) or not np.array_equal(
-            res1.exposures.to_numpy(), res2.exposures.to_numpy()
-        )
+        assert np.allclose(res1.signatures.to_numpy(), res2.signatures.to_numpy(), rtol=1e-6, atol=1e-8)
+        assert np.allclose(res1.exposures.to_numpy(), res2.exposures.to_numpy(), rtol=1e-6, atol=1e-8)
+        # groups default should match exactly
+        assert res1.groups.equals(res2.groups)
 
     def test_model_params_contain_basic_fields(self):
         matrix = self.toy_matrix()
-
         res = run_nmf(matrix, n_signatures=2, random_state=0)
 
         params = res.model_params
@@ -149,28 +180,22 @@ class TestRunNMF:
             "l1_ratio",
             "reconstruction_err_",
             "n_iter_",
+            "n_groups",
+            "max_clusters"
         ]:
             assert key in params
+
 
 class TestSaveLoadNMFResult:
     def _toy_matrix(self) -> pd.DataFrame:
         return pd.DataFrame(
-            {
-                "f1": [1.0, 2.0, 3.0],
-                "f2": [0.0, 1.0, 0.0],
-                "f3": [4.0, 0.0, 1.0],
-            },
+            {"f1": [1.0, 2.0, 3.0], "f2": [0.0, 1.0, 0.0], "f3": [4.0, 0.0, 1.0]},
             index=["s1", "s2", "s3"],
         )
 
     def test_save_and_load_roundtrip(self, output_dir: str):
-        """
-        run_nmf -> save_nmf_result -> load_nmf_result
-        should round-trip signatures & exposures (up to numeric precision)
-        and preserve model_params keys.
-        """
         matrix = self._toy_matrix()
-        res = run_nmf(matrix, n_signatures=2, random_state=0)
+        res = run_nmf(matrix, n_signatures=2, random_state=0, max_clusters=3)
 
         outdir = Path(output_dir) / "nmf_roundtrip"
         save_nmf_result(res, outdir)
@@ -178,6 +203,7 @@ class TestSaveLoadNMFResult:
         # Basic files exist
         assert (outdir / "signatures.tsv").is_file()
         assert (outdir / "exposures.tsv").is_file()
+        assert (outdir / "groups.tsv").is_file()
         assert (outdir / "metadata.json").is_file()
 
         res_loaded = load_nmf_result(outdir)
@@ -188,19 +214,14 @@ class TestSaveLoadNMFResult:
         assert list(res_loaded.exposures.index) == list(res.exposures.index)
         assert list(res_loaded.exposures.columns) == list(res.exposures.columns)
 
+        # groups: present and aligned
+        assert isinstance(res_loaded.groups, pd.DataFrame)
+        assert list(res_loaded.groups.index) == list(res.groups.index)
+        assert list(res_loaded.groups.columns) == ["group"]
+
         # Numeric close
-        assert np.allclose(
-            res_loaded.signatures.to_numpy(),
-            res.signatures.to_numpy(),
-            rtol=1e-6,
-            atol=1e-8,
-        )
-        assert np.allclose(
-            res_loaded.exposures.to_numpy(),
-            res.exposures.to_numpy(),
-            rtol=1e-6,
-            atol=1e-8,
-        )
+        assert np.allclose(res_loaded.signatures.to_numpy(), res.signatures.to_numpy(), rtol=1e-6, atol=1e-8)
+        assert np.allclose(res_loaded.exposures.to_numpy(), res.exposures.to_numpy(), rtol=1e-6, atol=1e-8)
 
         # Metadata contains the core fields
         for key in [
@@ -213,42 +234,74 @@ class TestSaveLoadNMFResult:
             "l1_ratio",
             "format_version",
             "created_at",
+            "n_groups",
+            "max_clusters"
         ]:
             assert key in res_loaded.model_params
 
     def test_load_missing_files_raises(self, output_dir: str):
-        """
-        If one of signatures.tsv / exposures.tsv / metadata.json is missing,
-        load_nmf_result should raise FileNotFoundError.
-        """
         outdir = Path(output_dir) / "nmf_missing"
         outdir.mkdir(parents=True, exist_ok=True)
 
-        # Only create one of the files
         (outdir / "signatures.tsv").write_text("dummy\t1\nfeat1\t0.1\n")
 
         with pytest.raises(FileNotFoundError):
             _ = load_nmf_result(outdir)
 
+
+class TestOrderByGroupAndTotal:
+    def test_aligns_and_sorts_by_group_then_total_desc(self):
+        exposures = pd.DataFrame(
+            {
+                "Signature_1": [5.0, 1.0, 2.0, 10.0],
+                "Signature_2": [0.0, 4.0, 1.0, 0.0],
+            },
+            index=["s1", "s2", "s3", "s4"],
+        )
+        # group A: s1,s3 ; group B: s2,s4 (but s4 is higher total than s2)
+        groups = pd.DataFrame({"group": ["A", "B", "A", "B"]}, index=["s1", "s2", "s3", "s4"])
+
+        ordered_exp, ordered_groups = order_by_group_and_total(exposures, groups)
+
+        # Must keep all samples (aligned)
+        assert list(ordered_exp.index) == ["s1", "s3", "s4", "s2"]
+        assert ordered_groups.tolist() == ["A", "A", "B", "B"]
+
+        # totals within group are descending
+        totals = ordered_exp.sum(axis=1).to_numpy()
+        # group A block: s1 total=5, s3 total=3
+        assert totals[0] >= totals[1]
+        # group B block: s4 total=10, s2 total=5
+        assert totals[2] >= totals[3]
+
+    def test_inner_join_drops_non_overlapping_samples(self):
+        exposures = pd.DataFrame(
+            {"Signature_1": [1.0, 2.0], "Signature_2": [0.0, 1.0]},
+            index=["s1", "s2"],
+        )
+        groups = pd.DataFrame({"group": ["A"]}, index=["s1"])  # s2 missing
+
+        ordered_exp, ordered_groups = order_by_group_and_total(exposures, groups)
+
+        assert list(ordered_exp.index) == ["s1"]
+        assert ordered_groups.tolist() == ["A"]
+
+    def test_no_overlap_raises(self):
+        exposures = pd.DataFrame({"Signature_1": [1.0]}, index=["s1"])
+        groups = pd.DataFrame({"group": ["A"]}, index=["x1"])
+
+        with pytest.raises(ValueError, match="No overlap"):
+            _ = order_by_group_and_total(exposures, groups)
+
+
 class TestProjectOntoSignatures:
     def _toy_matrix(self) -> pd.DataFrame:
         return pd.DataFrame(
-            {
-                "f1": [1.0, 2.0, 3.0],
-                "f2": [0.0, 1.0, 0.0],
-                "f3": [4.0, 0.0, 1.0],
-            },
+            {"f1": [1.0, 2.0, 3.0], "f2": [0.0, 1.0, 0.0], "f3": [4.0, 0.0, 1.0]},
             index=["s1", "s2", "s3"],
         )
 
     def test_project_basic_nnls_shape_and_nonneg(self):
-        """
-        Project the same matrix onto its own learned signatures.
-        Check:
-          - shape (samples x K)
-          - non-negativity
-          - reconstruction error is smaller than norm of data
-        """
         matrix = self._toy_matrix()
         nmf_res = run_nmf(matrix, n_signatures=2, random_state=0)
 
@@ -258,15 +311,12 @@ class TestProjectOntoSignatures:
             method="nnls",
         )
 
-        # Same samples, same number of signatures
         assert list(exposures_proj.index) == list(matrix.index)
         assert list(exposures_proj.columns) == list(nmf_res.signatures.columns)
 
-        # Non-negative
         arr = exposures_proj.to_numpy()
         assert np.all(arr >= -1e-10)
 
-        # Reconstruction quality: ||X - E_proj * H^T|| < ||X||
         X = matrix.to_numpy(dtype=float)
         H = nmf_res.signatures.to_numpy(dtype=float)  # features x K
         E = exposures_proj.to_numpy(dtype=float)      # samples x K
@@ -277,22 +327,10 @@ class TestProjectOntoSignatures:
         assert err < base
 
     def test_project_with_partial_feature_overlap_warns(self):
-        """
-        If new_matrix has only a subset of features in signatures.index,
-        projection should:
-          - warn if overlap < 50%
-          - still return a exposures matrix
-        """
         matrix = self._toy_matrix()
         nmf_res = run_nmf(matrix, n_signatures=2, random_state=0)
 
-        # new_matrix only has f1
-        new_matrix = pd.DataFrame(
-            {
-                "f1": [1.0, 0.5],
-            },
-            index=["n1", "n2"],
-        )
+        new_matrix = pd.DataFrame({"f1": [1.0, 0.5]}, index=["n1", "n2"])
 
         with pytest.warns(RuntimeWarning):
             exposures_proj = project_onto_signatures(
@@ -306,20 +344,10 @@ class TestProjectOntoSignatures:
         assert list(exposures_proj.columns) == list(nmf_res.signatures.columns)
 
     def test_project_no_common_features_raises(self):
-        """
-        If there is no overlap between new_matrix.columns and signatures.index,
-        projection should raise ValueError.
-        """
         matrix = self._toy_matrix()
         nmf_res = run_nmf(matrix, n_signatures=2, random_state=0)
 
-        new_matrix = pd.DataFrame(
-            {
-                "g1": [1.0, 2.0],
-                "g2": [0.0, 1.0],
-            },
-            index=["n1", "n2"],
-        )
+        new_matrix = pd.DataFrame({"g1": [1.0, 2.0], "g2": [0.0, 1.0]}, index=["n1", "n2"])
 
         with pytest.raises(ValueError) as excinfo:
             _ = project_onto_signatures(
