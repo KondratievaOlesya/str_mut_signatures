@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Literal
+import re
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +15,7 @@ from .nmf import NMFResult
 # ---------------------------------------------------------------------
 # PCA helpers
 # ---------------------------------------------------------------------
+
 
 def compute_pca(
     matrix: pd.DataFrame,
@@ -60,7 +62,7 @@ def compute_pca(
     pca = PCA(n_components=n_components)
     X_pca = pca.fit_transform(X)
 
-    cols = [f"PC{i+1}" for i in range(n_components)]
+    cols = [f"PC{i + 1}" for i in range(n_components)]
     coords = pd.DataFrame(X_pca, index=matrix.index, columns=cols)
 
     return coords, pca.explained_variance_ratio_
@@ -125,7 +127,7 @@ def plot_pca_samples(
     ax: plt.Axes | None = None,
     title: str | None = None,
     alpha: float = 0.8,
-    s: float = 30.0
+    s: float = 30.0,
 ) -> tuple[pd.DataFrame, np.ndarray, plt.Axes]:
     """
     Run PCA on an NMF result (typically exposures) and plot PC1 vs PC2.
@@ -241,6 +243,7 @@ def plot_pca_samples(
 # Signature plots
 # ---------------------------------------------------------------------
 
+
 def plot_signatures(
     result: NMFResult,
     top_n: int = 20,
@@ -320,75 +323,67 @@ def plot_signatures(
 # Exposure / sample plots
 # ---------------------------------------------------------------------
 
-def order_by_group_and_total(
-    exposures: pd.DataFrame,
-    groups: pd.DataFrame
-) -> tuple[pd.DataFrame, np.ndarray]:
+def build_exposure_table(
+    exposures: pd.DataFrame, groups: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """
-    Align exposures with groups, then reorder rows by group and within each group
-    by total exposure (descending).
+    Return a single dataframe with exposures + a 'group' column (aligned by index).
 
-    Returns
-    -------
-    ordered_exposures : pd.DataFrame
-        Exposures aligned + sorted.
-
-    ordered_groups : np.ndarray
-        Group labels in the same order as ordered_exposures.index.
+    - Inner-joins on sample index to guarantee exposure rows match group rows.
+    - If groups is missing/empty, assigns all samples to default_group.
     """
     if not isinstance(exposures, pd.DataFrame):
         raise TypeError("exposures must be a pandas.DataFrame.")
-    if not isinstance(groups, pd.DataFrame):
-        raise TypeError("groups must be a pandas.DataFrame.")
-    if "group" not in groups.columns:
-        raise ValueError("groups must contain column 'group'.")
 
-    # Align
-    tmp = exposures.join(groups[["group"]], how="inner")
-    if tmp.empty:
+    exp = exposures.copy()
+
+    if groups is None or not isinstance(groups, pd.DataFrame) or groups.empty:
+        grp = pd.DataFrame({"group": "1"}, index=exp.index)
+    else:
+        if "group" not in groups.columns:
+            raise ValueError('groups must contain column "group".')
+        grp = groups[["group"]].copy()
+
+    # strict alignment: keep only overlapping samples
+    df = exp.join(grp, how="inner")
+    if df.empty:
         raise ValueError("No overlap between exposures.index and groups.index.")
 
-    # Compute totals on exposures only
-    totals = tmp.drop(columns=["group"]).sum(axis=1)
+    # sanity: no missing group values after join
+    if df["group"].isna().any():
+        missing = df.index[df["group"].isna()].tolist()
+        raise ValueError(
+            f"Missing group labels for samples: {missing[:10]}{'...' if len(missing) > 10 else ''}"
+        )
 
-    # Stable sort:
-    # 1) by group
-    # 2) by total exposure (desc)
-    tmp["_total"] = totals
-    tmp = tmp.sort_values(by=["group", "_total"], ascending=[True, False], kind="mergesort")
-
-    ordered_groups = tmp["group"].to_numpy()
-    ordered_exposures = tmp.drop(columns=["group", "_total"])
-    return ordered_exposures, ordered_groups
+    return df
 
 
-def chunk_indices(n: int, max_per_chunk: int | None) -> list[np.ndarray]:
-    if max_per_chunk is None or n <= max_per_chunk:
-        return [np.arange(n)]
-    return [np.arange(start, min(n, start + max_per_chunk)) for start in range(0, n, max_per_chunk)]
-
-
-def plot_single_exposure_panel(
-    exposures: pd.DataFrame,
-    group_labels: np.ndarray | None = None,
+def plot_one_panel(
+    df_panel: pd.DataFrame,
+    title: str,
+    sig_cols: list[str],
+    ylabel: str,
+    force_ylim_01: bool = False,
     stacked: bool = True,
     figsize: tuple[float, float] | None = None,
-    title: str = "Sample exposures",
 ) -> plt.Figure:
-    """
-    Plot one panel (subset of samples) of exposures.
-    If group_labels is provided, insert gaps between groups.
-    """
-    n_samples, n_sig = exposures.shape
+    group_labels = df_panel["group"].to_numpy()
+    exp_panel = df_panel[sig_cols]
 
+    n_samples = exp_panel.shape[0]
     if figsize is None:
-        figsize = (max(6.0, 0.4 * n_samples), 4.0)
+        fig_w = max(6.0, 0.4 * n_samples)
+        fig_h = 4.0
+        _figsize = (fig_w, fig_h)
+    else:
+        _figsize = figsize
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=_figsize)
 
-    # x positions with optional gaps between groups
-    if group_labels is None or n_samples == 0:
-        x = np.arange(n_samples, dtype=float)
+    # x positions with gaps between groups
+    if n_samples == 0:
+        x = np.arange(0, dtype=float)
     else:
         x = np.zeros(n_samples, dtype=float)
         x[0] = 0.0
@@ -398,39 +393,45 @@ def plot_single_exposure_panel(
             if group_labels[i] != group_labels[i - 1]:
                 x[i] += gap
 
-    sig_cols = list(exposures.columns)
-
     if stacked:
         bottom = np.zeros(n_samples)
-        for col in sig_cols:
-            vals = exposures[col].to_numpy()
+        for col in sig_cols:  # <- consistent signature order everywhere
+            vals = exp_panel[col].to_numpy()
             ax.bar(x, vals, bottom=bottom, label=str(col))
             bottom += vals
     else:
+        n_sig = len(sig_cols)
         width = 0.8 / max(n_sig, 1)
         for i, col in enumerate(sig_cols):
-            vals = exposures[col].to_numpy()
+            vals = exp_panel[col].to_numpy()
             ax.bar(x + i * width, vals, width=width, label=str(col))
-        ax.set_xlim(x.min() - 0.5, x.max() + 0.5)
+        if n_samples > 0:
+            ax.set_xlim(x.min() - 0.5, x.max() + 0.5)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(exposures.index, rotation=90, fontsize="x-small")
-
-    ax.set_ylabel("Exposure")
-    ax.legend(fontsize="small", title="Signatures")
+    ax.set_xticklabels(exp_panel.index, rotation=90, fontsize="x-small")
+    ax.set_ylabel(ylabel)
     ax.set_title(title)
+    ax.legend(fontsize="small", title="Signatures")
 
-    # Add group labels on top (optional, but useful)
-    if group_labels is not None and n_samples > 0:
-        # annotate group at the start of each group block
+    if force_ylim_01:
+        ax.set_ylim(0, 1)
+
+    # group labels at starts
+    if n_samples > 0:
         starts = [0] + [i for i in range(1, n_samples) if group_labels[i] != group_labels[i - 1]]
+        ylim = ax.get_ylim()
         for i in starts:
-            ax.text(x[i], ax.get_ylim()[1], str(group_labels[i]),
-                    ha="center", va="bottom", fontsize="x-small", rotation=0)
+            ax.text(
+                x[i], ylim[1], str(group_labels[i]), ha="center", va="bottom", fontsize="x-small"
+            )
 
     fig.tight_layout()
     return fig
 
+def signature_sort_key(name: str) -> int:
+    m = re.match(r"^Signature_(\d+)$", str(name))
+    return int(m.group(1)) if m else 10**9  # non-matching go last
 
 def plot_exposures(
     result: NMFResult,
@@ -441,68 +442,77 @@ def plot_exposures(
     plot: Literal["both", "absolute", "proportion"] = "both",
 ) -> dict[str, list[plt.Figure]]:
     """
-    Plot sample exposures to signatures, ordered/grouped by `result.groups["group"]`
-    (no new clustering).
+    Plot sample exposures, ensuring:
+      - sample order is identical across all panels/plots (absolute, proportion, single signature use the same rule)
+      - signature stacking/order is consistent (use exposures.columns order)
 
-    Notes
-    -----
-    - Always aligns exposures with groups first (inner join).
-    - Inserts gaps between groups in the x-axis.
+    Expected:
+      result.exposures : DataFrame (index = samples, columns = signatures)
+      result.groups    : DataFrame with column 'group' (optional)
     """
     exp = result.exposures
     if not isinstance(exp, pd.DataFrame):
         raise TypeError("result.exposures must be a pandas.DataFrame.")
 
-    groups = result.groups
-    if not isinstance(groups, pd.DataFrame) or groups.empty:
-        # fallback: single group for all samples
-        groups = pd.DataFrame({"group": "1"}, index=exp.index)
-    elif "group" not in groups.columns:
-        raise ValueError(f"result.groups must contain column {'group'!r}.")
+    # ---- build one table: exposures + group (aligned) ----
+    groups = getattr(result, "groups", None)
+    if isinstance(groups, pd.DataFrame) and (not groups.empty) and ("group" in groups.columns):
+        df = exp.join(groups[["group"]], how="inner")
+        if df.empty:
+            raise ValueError("No overlap between exposures.index and groups.index.")
+    else:
+        df = exp.copy()
+        df["group"] = "1"
 
-    # ---- align + order by group and total ----
-    exp_ord, group_labels = order_by_group_and_total(exp, groups)
+    # ---- one deterministic sample order for ALL plots ----
+    sig_cols = [c for c in df.columns if c != "group"]
+    sig_cols = sorted(sig_cols, key=signature_sort_key, reverse=False)
+    df["_total"] = df[sig_cols].sum(axis=1)
+    df = df.sort_values(by=["group", "_total"], ascending=[True, False], kind="mergesort").drop(
+        columns=["_total"]
+    )
 
-    # proportional exposures (avoid division by zero)
-    totals = exp_ord.sum(axis=1)
-    prop = exp_ord.div(totals.replace(0, np.nan), axis=0).fillna(0.0)
+    # ---- proportional exposures (same row order) ----
+    df_prop = df.copy()
+    totals = df_prop[sig_cols].sum(axis=1).replace(0, np.nan)
+    df_prop[sig_cols] = df_prop[sig_cols].div(totals, axis=0).fillna(0.0)
+    df_prop = df_prop.sort_values(by=["group"] + sig_cols, ascending=[True] + [False]*len(sig_cols), kind="mergesort")
+    # ---- chunking (multiple figures if many samples) ----
+    n = df.shape[0]
+    if max_samples_per_fig is None or n <= max_samples_per_fig:
+        chunks = [np.arange(n)]
+    else:
+        chunks = [
+            np.arange(s, min(n, s + max_samples_per_fig)) for s in range(0, n, max_samples_per_fig)
+        ]
 
     figs: dict[str, list[plt.Figure]] = {}
-    n_samples = exp_ord.shape[0]
-    chunks = chunk_indices(n_samples, max_samples_per_fig)
 
     if plot in ("both", "absolute"):
-        abs_figs: list[plt.Figure] = []
-        for chunk_idx in chunks:
-            exp_chunk = exp_ord.iloc[chunk_idx]
-            gl_chunk = group_labels[chunk_idx] if group_labels is not None else None
-            abs_figs.append(
-                plot_single_exposure_panel(
-                    exp_chunk,
-                    group_labels=gl_chunk,
-                    stacked=stacked,
-                    figsize=figsize,
-                    title="Sample exposures (absolute)",
-                )
+        figs["absolute"] = [
+            plot_one_panel(
+                df.iloc[idx],
+                "Sample exposures (absolute)",
+                sig_cols,
+                "Exposure",
+                stacked=stacked,
+                figsize=figsize,
             )
-        figs["absolute"] = abs_figs
+            for idx in chunks
+        ]
 
     if plot in ("both", "proportion"):
-        prop_figs: list[plt.Figure] = []
-        for chunk_idx in chunks:
-            prop_chunk = prop.iloc[chunk_idx]
-            gl_chunk = group_labels[chunk_idx] if group_labels is not None else None
-            fig = plot_single_exposure_panel(
-                prop_chunk,
-                group_labels=gl_chunk,
-                stacked=True,
+        figs["proportion"] = [
+            plot_one_panel(
+                df_prop.iloc[idx],
+                "Sample exposures (proportions)",
+                sig_cols,
+                "Proportion",
+                force_ylim_01=True,
+                stacked=stacked,
                 figsize=figsize,
-                title="Sample exposures (proportions)",
             )
-            ax = fig.axes[0]
-            ax.set_ylabel("Proportion")
-            ax.set_ylim(0, 1)
-            prop_figs.append(fig)
-        figs["proportion"] = prop_figs
+            for idx in chunks
+        ]
 
     return figs

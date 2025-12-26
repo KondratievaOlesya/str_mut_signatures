@@ -15,7 +15,6 @@ from str_mut_signatures.nmf.nmf import (
     save_nmf_result,
     validate_input_matrix,
 )
-from str_mut_signatures.nmf.plot import order_by_group_and_total
 
 
 class TestValidateInputMatrix:
@@ -247,52 +246,6 @@ class TestSaveLoadNMFResult:
 
         with pytest.raises(FileNotFoundError):
             _ = load_nmf_result(outdir)
-
-
-class TestOrderByGroupAndTotal:
-    def test_aligns_and_sorts_by_group_then_total_desc(self):
-        exposures = pd.DataFrame(
-            {
-                "Signature_1": [5.0, 1.0, 2.0, 10.0],
-                "Signature_2": [0.0, 4.0, 1.0, 0.0],
-            },
-            index=["s1", "s2", "s3", "s4"],
-        )
-        # group A: s1,s3 ; group B: s2,s4 (but s4 is higher total than s2)
-        groups = pd.DataFrame({"group": ["A", "B", "A", "B"]}, index=["s1", "s2", "s3", "s4"])
-
-        ordered_exp, ordered_groups = order_by_group_and_total(exposures, groups)
-
-        # Must keep all samples (aligned)
-        assert list(ordered_exp.index) == ["s1", "s3", "s4", "s2"]
-        assert ordered_groups.tolist() == ["A", "A", "B", "B"]
-
-        # totals within group are descending
-        totals = ordered_exp.sum(axis=1).to_numpy()
-        # group A block: s1 total=5, s3 total=3
-        assert totals[0] >= totals[1]
-        # group B block: s4 total=10, s2 total=5
-        assert totals[2] >= totals[3]
-
-    def test_inner_join_drops_non_overlapping_samples(self):
-        exposures = pd.DataFrame(
-            {"Signature_1": [1.0, 2.0], "Signature_2": [0.0, 1.0]},
-            index=["s1", "s2"],
-        )
-        groups = pd.DataFrame({"group": ["A"]}, index=["s1"])  # s2 missing
-
-        ordered_exp, ordered_groups = order_by_group_and_total(exposures, groups)
-
-        assert list(ordered_exp.index) == ["s1"]
-        assert ordered_groups.tolist() == ["A"]
-
-    def test_no_overlap_raises(self):
-        exposures = pd.DataFrame({"Signature_1": [1.0]}, index=["s1"])
-        groups = pd.DataFrame({"group": ["A"]}, index=["x1"])
-
-        with pytest.raises(ValueError, match="No overlap"):
-            _ = order_by_group_and_total(exposures, groups)
-
 
 class TestProjectOntoSignatures:
     def _toy_matrix(self) -> pd.DataFrame:
