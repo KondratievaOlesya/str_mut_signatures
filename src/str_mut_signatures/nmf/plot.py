@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Literal
+import re
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,8 +15,6 @@ from .nmf import NMFResult
 # ---------------------------------------------------------------------
 # PCA helpers
 # ---------------------------------------------------------------------
-
-
 
 
 def compute_pca(
@@ -63,7 +62,7 @@ def compute_pca(
     pca = PCA(n_components=n_components)
     X_pca = pca.fit_transform(X)
 
-    cols = [f"PC{i+1}" for i in range(n_components)]
+    cols = [f"PC{i + 1}" for i in range(n_components)]
     coords = pd.DataFrame(X_pca, index=matrix.index, columns=cols)
 
     return coords, pca.explained_variance_ratio_
@@ -125,16 +124,11 @@ def plot_pca_samples(
     *,
     matrix: pd.DataFrame | None = None,
     n_components: int = 2,
-    labels: Iterable[Any] | None = None,
-    cluster: bool = False,
-    max_clusters: int = 6,
-    random_state: int | None = 0,
     ax: plt.Axes | None = None,
     title: str | None = None,
     alpha: float = 0.8,
     s: float = 30.0,
-    color_by: Literal["auto", "labels", "cluster"] = "auto",
-) -> tuple[pd.DataFrame, np.ndarray, np.ndarray | None, plt.Axes]:
+) -> tuple[pd.DataFrame, np.ndarray, plt.Axes]:
     """
     Run PCA on an NMF result (typically exposures) and plot PC1 vs PC2.
 
@@ -142,7 +136,7 @@ def plot_pca_samples(
     - extracts a samples x features matrix from `result`
       (by default `result.exposures`),
     - computes PCA,
-    - optionally clusters samples and colors by cluster,
+    - color samples by NMFResult.groups
     - returns PCA coordinates, variance explained, cluster labels and axes.
 
     Parameters
@@ -158,22 +152,6 @@ def plot_pca_samples(
     n_components : int, default 2
         Number of principal components to compute. Must be >= 2.
 
-    labels : iterable or None, default None
-        Optional external labels for coloring points (e.g. tumor subtype).
-        Must have the same length as the number of samples.
-        Used only if `color_by` allows it.
-
-    cluster : bool, default False
-        If True, automatically cluster samples in PCA space (KMeans) and
-        color points by cluster. The number of clusters is selected using
-        the silhouette score.
-
-    max_clusters : int, default 6
-        Maximum number of clusters to consider when `cluster=True`.
-
-    random_state : int or None, default 0
-        Random state passed to KMeans.
-
     ax : matplotlib.axes.Axes or None, default None
         Existing axes to plot on. If None, a new figure/axes is created.
 
@@ -186,12 +164,6 @@ def plot_pca_samples(
     s : float, default 30.0
         Point size.
 
-    color_by : {"auto", "labels", "cluster"}, default "auto"
-        - "auto"    : if `cluster=True` and clustering succeeds, color by cluster;
-                      else, if `labels` provided, color by labels; else single color.
-        - "labels"  : always color by `labels` (error if not provided).
-        - "cluster" : always color by clusters (error if `cluster=False` or clustering fails).
-
     Returns
     -------
     coords : pandas.DataFrame
@@ -199,10 +171,6 @@ def plot_pca_samples(
 
     explained_variance_ratio_ : np.ndarray
         Fraction of variance explained by each component.
-
-    cluster_labels : np.ndarray or None
-        Cluster labels (0..k-1) for each sample in the same order as coords.index,
-        or None if clustering was not requested or not possible.
 
     ax : matplotlib.axes.Axes
         Axes with the PCA scatter plot.
@@ -222,64 +190,57 @@ def plot_pca_samples(
     # run PCA
     coords, var_ratio = compute_pca(matrix, n_components=n_components)
 
-    # optional clustering (in PCA space)
-    cluster_labels: np.ndarray | None = None
-    if cluster:
-        cluster_labels = cluster_rows(coords.iloc[:, : min(10, n_components)],  # use first PCs
-                                       max_clusters=max_clusters,
-                                       random_state=random_state)
+    if "PC1" not in coords.columns or "PC2" not in coords.columns:
+        raise ValueError("coords must contain 'PC1' and 'PC2' columns.")
 
-    # decide how to color points
-    if color_by == "labels":
-        if labels is None:
-            raise ValueError("color_by='labels' but no labels were provided.")
-        used_labels = np.asarray(list(labels))
-        legend_title = "Group"
-    elif color_by == "cluster":
-        if cluster_labels is None:
-            raise ValueError(
-                "color_by='cluster' but clustering was not performed or failed."
-            )
-        used_labels = cluster_labels
-        legend_title = "Cluster"
-    else:  # "auto"
-        if cluster_labels is not None:
-            used_labels = cluster_labels
-            legend_title = "Cluster"
-        elif labels is not None:
-            used_labels = np.asarray(list(labels))
-            legend_title = "Group"
-        else:
-            used_labels = None
-            legend_title = ""
+    groups_df = result.groups
+    if "group" not in groups_df.columns:
+        raise ValueError("result.groups must contain a column named 'group'.")
+
+    # align
+    plot_df = coords.join(groups_df[["group"]], how="inner")
+    if plot_df.empty:
+        raise ValueError("No samples left to plot after aligning PCA coords and groups.")
 
     # prepare axes
     if ax is None:
         fig, ax = plt.subplots()
 
-    if "PC1" not in coords.columns or "PC2" not in coords.columns:
-        raise ValueError("coords must contain 'PC1' and 'PC2' columns.")
+    # autodetect continuous (numeric) vs categorical
+    is_numeric = pd.api.types.is_numeric_dtype(plot_df["group"])
+    n_non_null = int(plot_df["group"].notna().sum())
 
-    x = coords["PC1"].to_numpy()
-    y = coords["PC2"].to_numpy()
+    # use nunique(dropna=True) so NaNs don't inflate uniqueness
+    n_unique = int(plot_df["group"].nunique(dropna=True)) if n_non_null > 0 else 0
+    unique_frac = (n_unique / n_non_null) if n_non_null > 0 else 0.0
 
-    # scatter plot
-    if used_labels is None:
-        ax.scatter(x, y, alpha=alpha, s=s)
+    is_continuous = bool(is_numeric and (n_unique > 10 or unique_frac > 0.30))
+    if is_continuous:
+        cmap = plt.get_cmap("viridis")
+        norm = plt.Normalize(vmin=plot_df["group"].min(), vmax=plot_df["group"].max())
+        colors = cmap(norm(plot_df["group"]))
+        ax.scatter(
+            plot_df["PC1"].to_numpy(),
+            plot_df["PC2"].to_numpy(),
+            c=colors,
+            alpha=alpha,
+            s=s,
+        )
+        mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+        mappable.set_array([])
+        plt.colorbar(mappable, ax=ax, label="Group")
     else:
-        if len(used_labels) != len(coords):
-            raise ValueError("labels length must match number of samples.")
-        unique = np.unique(used_labels)
-        for lab in unique:
-            mask = used_labels == lab
+        # plot per group to get a correct categorical legend
+        for g, sub in plot_df.groupby("group", dropna=False):
             ax.scatter(
-                x[mask],
-                y[mask],
+                sub["PC1"].to_numpy(),
+                sub["PC2"].to_numpy(),
                 alpha=alpha,
                 s=s,
-                label=str(lab),
+                label=str(g),
             )
-        ax.legend(title=legend_title, fontsize="small")
+
+        ax.legend(title="Group", fontsize="small")
 
     # axis labels with % variance
     pc1_var = var_ratio[0] * 100 if len(var_ratio) > 0 else None
@@ -297,11 +258,9 @@ def plot_pca_samples(
 
     if title is None:
         title = "PCA of NMF exposures"
-        if cluster_labels is not None:
-            title += " (colored by cluster)"
     ax.set_title(title)
 
-    return coords, var_ratio, cluster_labels, ax
+    return coords, var_ratio, ax
 
 
 # ---------------------------------------------------------------------
@@ -389,137 +348,116 @@ def plot_signatures(
 # ---------------------------------------------------------------------
 
 
-
-def cluster_samples(
-    exposures: pd.DataFrame,
-    max_clusters: int = 6,
-    random_state: int | None = 0,
-) -> np.ndarray | None:
+def build_exposure_table(
+    exposures: pd.DataFrame, groups: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """
-    Cluster samples using KMeans and select best k via silhouette score.
-    Returns an array of cluster labels (0..k-1) in the same order as `exposures.index`,
-    or None if clustering is not possible.
+    Return a single dataframe with exposures + a 'group' column (aligned by index).
+
+    - Inner-joins on sample index to guarantee exposure rows match group rows.
+    - If groups is missing/empty, assigns all samples to default_group.
     """
-    n_samples = exposures.shape[0]
-    if n_samples < 3:  # not enough for silhouette
-        return None
+    if not isinstance(exposures, pd.DataFrame):
+        raise TypeError("exposures must be a pandas.DataFrame.")
 
-    X = exposures.to_numpy()
-    best_k = None
-    best_score = -np.inf
-    best_labels = None
+    exp = exposures.copy()
 
-    # search over k, but not more than n_samples - 1
-    for k in range(2, min(max_clusters, n_samples - 1) + 1):
-        km = KMeans(n_clusters=k, n_init="auto", random_state=random_state)
-        labels = km.fit_predict(X)
-        # ignore degenerate clustering
-        if len(np.unique(labels)) < 2:
-            continue
-        try:
-            score = silhouette_score(X, labels)
-        except ValueError:
-            continue
-        if score > best_score:
-            best_score = score
-            best_k = k
-            best_labels = labels
+    if groups is None or not isinstance(groups, pd.DataFrame) or groups.empty:
+        grp = pd.DataFrame({"group": "1"}, index=exp.index)
+    else:
+        if "group" not in groups.columns:
+            raise ValueError('groups must contain column "group".')
+        grp = groups[["group"]].copy()
 
-    return best_labels if best_k is not None else None
+    # strict alignment: keep only overlapping samples
+    df = exp.join(grp, how="inner")
+    if df.empty:
+        raise ValueError("No overlap between exposures.index and groups.index.")
 
+    # sanity: no missing group values after join
+    if df["group"].isna().any():
+        missing = df.index[df["group"].isna()].tolist()
+        raise ValueError(
+            f"Missing group labels for samples: {missing[:10]}{'...' if len(missing) > 10 else ''}"
+        )
 
-def order_by_cluster_and_total(
-    exposures: pd.DataFrame,
-    cluster_labels: np.ndarray | None,
-) -> tuple[pd.DataFrame, np.ndarray | None]:
-    """
-    Reorder rows of `exposures` by cluster (if provided) and within each cluster
-    by total exposure (descending).
-    """
-    df = exposures.copy()
-
-    if cluster_labels is None:
-        # global sort by total exposure
-        totals = df.sum(axis=1)
-        df = df.loc[totals.sort_values(ascending=False).index]
-        return df, None
-
-    # attach labels and totals, then sort
-    tmp = df.copy()
-    tmp["_cluster"] = cluster_labels
-    tmp["_total"] = tmp.drop(columns="_cluster").sum(axis=1)
-
-    tmp = tmp.sort_values(by=["_cluster", "_total"], ascending=[True, False])
-
-    ordered_labels = tmp["_cluster"].to_numpy()
-    tmp = tmp.drop(columns=["_cluster", "_total"])
-
-    return tmp, ordered_labels
+    return df
 
 
-def chunk_indices(n: int, max_per_chunk: int | None) -> list[np.ndarray]:
-    if max_per_chunk is None or n <= max_per_chunk:
-        return [np.arange(n)]
-    chunks = []
-    for start in range(0, n, max_per_chunk):
-        end = min(n, start + max_per_chunk)
-        chunks.append(np.arange(start, end))
-    return chunks
-
-
-def plot_single_exposure_panel(
-    exposures: pd.DataFrame,
-    cluster_labels: np.ndarray | None = None,
+def plot_one_panel(
+    df_panel: pd.DataFrame,
+    title: str,
+    sig_cols: list[str],
+    ylabel: str,
+    force_ylim_01: bool = False,
     stacked: bool = True,
     figsize: tuple[float, float] | None = None,
-    title: str = "Sample exposures",
 ) -> plt.Figure:
-    """
-    Plot one panel (subset of samples) of exposures.
-    """
-    n_samples, n_sig = exposures.shape
+    group_labels = df_panel["group"].to_numpy()
+    exp_panel = df_panel[sig_cols]
 
+    n_samples = exp_panel.shape[0]
     if figsize is None:
-        figsize = (max(6.0, 0.4 * n_samples), 4.0)
+        fig_w = max(6.0, 0.4 * n_samples)
+        fig_h = 4.0
+        _figsize = (fig_w, fig_h)
+    else:
+        _figsize = figsize
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=_figsize)
 
-    # x positions with optional gaps between clusters
-    if cluster_labels is None or n_samples == 0:
-        x = np.arange(n_samples, dtype=float)
+    # x positions with gaps between groups
+    if n_samples == 0:
+        x = np.arange(0, dtype=float)
     else:
         x = np.zeros(n_samples, dtype=float)
         x[0] = 0.0
-        gap = 1.0  # width of gap between clusters
+        gap = 1.0
         for i in range(1, n_samples):
             x[i] = x[i - 1] + 1.0
-            if cluster_labels[i] != cluster_labels[i - 1]:
+            if group_labels[i] != group_labels[i - 1]:
                 x[i] += gap
-
-    sig_cols = list(exposures.columns)
 
     if stacked:
         bottom = np.zeros(n_samples)
-        for col in sig_cols:
-            vals = exposures[col].to_numpy()
+        for col in sig_cols:  # <- consistent signature order everywhere
+            vals = exp_panel[col].to_numpy()
             ax.bar(x, vals, bottom=bottom, label=str(col))
             bottom += vals
     else:
-        width = 0.8 / n_sig
+        n_sig = len(sig_cols)
+        width = 0.8 / max(n_sig, 1)
         for i, col in enumerate(sig_cols):
-            vals = exposures[col].to_numpy()
+            vals = exp_panel[col].to_numpy()
             ax.bar(x + i * width, vals, width=width, label=str(col))
-        ax.set_xlim(x.min() - 0.5, x.max() + 0.5)
+        if n_samples > 0:
+            ax.set_xlim(x.min() - 0.5, x.max() + 0.5)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(exposures.index, rotation=90, fontsize="x-small")
-
-    ax.set_ylabel("Exposure")
-    ax.legend(fontsize="small", title="Signatures")
+    ax.set_xticklabels(exp_panel.index, rotation=90, fontsize="x-small")
+    ax.set_ylabel(ylabel)
     ax.set_title(title)
+    ax.legend(fontsize="small", title="Signatures")
+
+    if force_ylim_01:
+        ax.set_ylim(0, 1)
+
+    # group labels at starts
+    if n_samples > 0:
+        starts = [0] + [i for i in range(1, n_samples) if group_labels[i] != group_labels[i - 1]]
+        ylim = ax.get_ylim()
+        for i in starts:
+            ax.text(
+                x[i], ylim[1], str(group_labels[i]), ha="center", va="bottom", fontsize="x-small"
+            )
 
     fig.tight_layout()
     return fig
+
+
+def signature_sort_key(name: str) -> int:
+    m = re.match(r"^Signature_(\d+)$", str(name))
+    return int(m.group(1)) if m else 10**9  # non-matching go last
 
 
 def plot_exposures(
@@ -528,120 +466,82 @@ def plot_exposures(
     stacked: bool = True,
     figsize: tuple[float, float] | None = None,
     max_samples_per_fig: int | None = None,
-    cluster: bool = False,
-    max_clusters: int = 6,
-    random_state: int | None = 0,
     plot: Literal["both", "absolute", "proportion"] = "both",
 ) -> dict[str, list[plt.Figure]]:
     """
-    Plot sample exposures to signatures, optionally clustered and paginated.
+    Plot sample exposures, ensuring:
+      - sample order is identical across all panels/plots (absolute, proportion, single signature use the same rule)
+      - signature stacking/order is consistent (use exposures.columns order)
 
-    This function produces:
-    - absolute exposure plots (raw exposures)
-    - proportional exposure plots (rows normalized to sum to 1)
-
-    Parameters
-    ----------
-    result : NMFResult
-        Output of `run_nmf`. Must have `.exposures` as a (samples x signatures)
-        pandas DataFrame.
-
-    stacked : bool, default True
-        If True, draw stacked barplots. If False, draw grouped bars.
-
-    figsize : (float, float) or None, default None
-        Figure size. If None, choose a basic default depending on number
-        of samples in each panel.
-
-    max_samples_per_fig : int or None, default None
-        Maximum number of samples per figure. If None, all samples are
-        plotted in a single figure. If the number of samples exceeds this
-        value, multiple figures are created.
-
-    cluster : bool, default False
-        If True, automatically cluster samples (KMeans) using signature
-        exposures and select the number of clusters via silhouette score.
-        Samples are ordered by cluster, and within each cluster by total
-        exposure (descending). Clusters are separated by horizontal gaps.
-
-    max_clusters : int, default 6
-        Maximum number of clusters to consider when `cluster=True`.
-
-    random_state : int or None, default 0
-        Random state passed to KMeans.
-
-    plot : {"both", "absolute", "proportion"}, default "both"
-        Which type(s) of plots to generate:
-        - "absolute": raw exposures
-        - "proportion": exposures normalized to sum to 1 per sample
-        - "both": both types
-
-    Returns
-    -------
-    figs : dict[str, list[matplotlib.figure.Figure]]
-        Dictionary with keys "absolute" and/or "proportion", each mapping
-        to a list of Figure objects (one per panel).
+    Expected:
+      result.exposures : DataFrame (index = samples, columns = signatures)
+      result.groups    : DataFrame with column 'group' (optional)
     """
-    exp = result.exposures.copy()
+    exp = result.exposures
     if not isinstance(exp, pd.DataFrame):
-        raise TypeError("result.exposures must be a pandas DataFrame.")
+        raise TypeError("result.exposures must be a pandas.DataFrame.")
 
-    # ---- clustering & ordering ----
-    cluster_labels = None
-    if cluster:
-        labels = cluster_samples(exp, max_clusters=max_clusters, random_state=random_state)
-        if labels is not None:
-            exp, cluster_labels = order_by_cluster_and_total(exp, labels)
-        else:
-            # fall back to global sorting if clustering failed
-            exp, cluster_labels = order_by_cluster_and_total(exp, None)
+    # ---- build one table: exposures + group ----
+    groups = getattr(result, "groups", None)
+    if isinstance(groups, pd.DataFrame) and (not groups.empty) and ("group" in groups.columns):
+        df = exp.join(groups[["group"]], how="inner")
+        if df.empty:
+            raise ValueError("No overlap between exposures.index and groups.index.")
     else:
-        # no clustering: simply sort by total exposure
-        exp, cluster_labels = order_by_cluster_and_total(exp, None)
+        df = exp.copy()
+        df["group"] = "1"
 
-    # prepare proportional exposures (avoid division by zero)
-    totals = exp.sum(axis=1)
-    totals_replaced = totals.replace(0, np.nan)
-    prop = exp.div(totals_replaced, axis=0).fillna(0.0)
+    # ---- one deterministic sample order for ALL plots ----
+    sig_cols = [c for c in df.columns if c != "group"]
+    sig_cols = sorted(sig_cols, key=signature_sort_key, reverse=False)
+    df["_total"] = df[sig_cols].sum(axis=1)
+    df = df.sort_values(by=["group", "_total"], ascending=[True, False], kind="mergesort").drop(
+        columns=["_total"]
+    )
+
+    # ---- proportional exposures (same row order) ----
+    df_prop = df.copy()
+    totals = df_prop[sig_cols].sum(axis=1).replace(0, np.nan)
+    df_prop[sig_cols] = df_prop[sig_cols].div(totals, axis=0).fillna(0.0)
+    df_prop = df_prop.sort_values(
+        by=["group"] + sig_cols, ascending=[True] + [False] * len(sig_cols), kind="mergesort"
+    )
+    # ---- chunking (multiple figures if many samples) ----
+    n = df.shape[0]
+    if max_samples_per_fig is None or n <= max_samples_per_fig:
+        chunks = [np.arange(n)]
+    else:
+        chunks = [
+            np.arange(s, min(n, s + max_samples_per_fig)) for s in range(0, n, max_samples_per_fig)
+        ]
 
     figs: dict[str, list[plt.Figure]] = {}
-    n_samples = exp.shape[0]
-
-    # chunking indices
-    chunks = chunk_indices(n_samples, max_samples_per_fig)
 
     if plot in ("both", "absolute"):
-        abs_figs: list[plt.Figure] = []
-        for chunk_idx in chunks:
-            exp_chunk = exp.iloc[chunk_idx]
-            cl_chunk = cluster_labels[chunk_idx] if cluster_labels is not None else None
-            fig = plot_single_exposure_panel(
-                exp_chunk,
-                cluster_labels=cl_chunk,
+        figs["absolute"] = [
+            plot_one_panel(
+                df.iloc[idx],
+                "Sample exposures (absolute)",
+                sig_cols,
+                "Exposure",
                 stacked=stacked,
                 figsize=figsize,
-                title="Sample exposures (absolute)",
             )
-            abs_figs.append(fig)
-        figs["absolute"] = abs_figs
+            for idx in chunks
+        ]
 
     if plot in ("both", "proportion"):
-        prop_figs: list[plt.Figure] = []
-        for chunk_idx in chunks:
-            prop_chunk = prop.iloc[chunk_idx]
-            cl_chunk = cluster_labels[chunk_idx] if cluster_labels is not None else None
-            fig = plot_single_exposure_panel(
-                prop_chunk,
-                cluster_labels=cl_chunk,
-                stacked=True,  # proportions almost always make sense stacked
+        figs["proportion"] = [
+            plot_one_panel(
+                df_prop.iloc[idx],
+                "Sample exposures (proportions)",
+                sig_cols,
+                "Proportion",
+                force_ylim_01=True,
+                stacked=stacked,
                 figsize=figsize,
-                title="Sample exposures (proportions)",
             )
-            # force y-axis from 0 to 1
-            ax = fig.axes[0]
-            ax.set_ylabel("Proportion")
-            ax.set_ylim(0, 1)
-            prop_figs.append(fig)
-        figs["proportion"] = prop_figs
+            for idx in chunks
+        ]
 
     return figs

@@ -131,7 +131,7 @@ class TestCLIBasicUsage:
             text=True
         )
         assert result.returncode == 0
-        assert "0.3.0" in result.stdout
+        assert "1.0.0" in result.stdout
 
     def test_no_arguments_fails(self):
         """Test that running without arguments fails."""

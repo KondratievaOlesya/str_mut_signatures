@@ -185,11 +185,10 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     # 5) Plot signatures, exposures, PCA  (UPDATED)
     # ------------------------------------------------------------------
     sig_obj = plot_signatures(nmf_res, top_n=10)
-    exp_obj = plot_exposures(nmf_res, cluster=True, max_samples_per_fig=50)
-    coords, var_ratio, cluster_labels, pca_obj = plot_pca_samples(
+    exp_obj = plot_exposures(nmf_res, max_samples_per_fig=200)
+    coords, var_ratio, pca_obj = plot_pca_samples(
         nmf_res,
-        title="PCA of exposures",
-        cluster=True,
+        title="PCA of exposures"
     )
 
     # Basic PCA checks unchanged

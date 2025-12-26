@@ -5,6 +5,93 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 as far as reasonably possible for a research codebase.
+## [1.0.0] - 2025-12-22
+### Added
+
+* **Persistent sample grouping in `NMFResult`**
+
+  * Introduced a new `groups` attribute in `NMFResult`:
+
+    * Stored as a `pandas.DataFrame` with:
+
+      * index = sample IDs
+      * column = `"group"`
+    * Always present (at minimum, all samples assigned to group `"1"`).
+
+* **Optional clustering at NMF runtime**
+
+  * `run_nmf()` now supports optional sample clustering via `max_clusters`:
+
+    * If `max_clusters > 1`, samples are clustered based on **signature exposures** using KMeans.
+    * Optimal number of clusters is selected using **silhouette score**.
+    * Cluster assignments are stored in `NMFResult.groups`.
+    * If clustering is disabled or not possible, all samples are assigned to group `"1"`.
+
+* **Group-aware PCA plotting**
+
+  * `plot_pca_samples()` now:
+
+    * Colors samples **exclusively using `NMFResult.groups`**
+    * Automatically aligns PCA coordinates and group labels by sample ID
+     * Automatically detects whether `group` is **continuous** vs **categorical**:
+        * Treats `group` as continuous only if it is numeric **and** has sufficient diversity
+          (more than **10** unique non-null values **or** > **30%** unique fraction)
+        * Continuous groups are shown with a **color gradient + colorbar**
+        * Categorical groups are shown with **separate legend entries**
+    * Does **not** perform clustering internally
+    * Returns:
+
+      * PCA coordinates
+      * explained variance ratio
+      * matplotlib axes
+
+* **Group-aware exposure plotting**
+
+  * `plot_exposures()` now:
+
+    * Uses `NMFResult.groups["group"]` for:
+
+      * sample ordering
+      * visual separation between groups
+    * No longer performs clustering internally
+    * Ensures consistent grouping across all downstream plots
+
+* **Groups persisted in I/O**
+
+  * `save_nmf_result()` now writes:
+
+    * `groups.tsv`
+  * `load_nmf_result()` restores `groups` alongside signatures and exposures.
+
+### Changed
+
+* **Plotting API semantics**
+
+  * Clustering logic has been **fully decoupled from plotting**:
+
+    * Clustering is now a modeling decision (`run_nmf`)
+    * Plotting functions are purely representational
+  * Removed `cluster` / `color_by` logic from PCA and exposure plotting.
+
+* **End-to-end pipeline consistency**
+
+  * Integration tests updated to:
+
+    * Validate presence and correctness of `groups`
+    * Use group-aware plotting APIs
+    * Ensure consistent sample alignment across NMF, PCA, and exposure plots
+
+### Removed
+
+* **Internal clustering from plotting functions**
+
+  * `plot_pca_samples()` and `plot_exposures()` no longer:
+
+    * run KMeans
+    * select `k`
+    * return cluster labels
+  * All grouping information must come from `NMFResult.groups`.
+
 ## [0.3.0] - 2025-12-02
 
 ### Added
