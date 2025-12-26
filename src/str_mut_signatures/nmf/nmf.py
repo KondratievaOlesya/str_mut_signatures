@@ -19,8 +19,10 @@ try:
     from datetime import UTC
 except ImportError:  # Python < 3.11
     from datetime import timezone
+
     UTC = timezone.utc
 FORMAT_VERSION = 1
+
 
 @dataclass
 class NMFResult:
@@ -49,6 +51,7 @@ class NMFResult:
     groups: pd.DataFrame
     model_params: dict[str, Any]
 
+
 def make_groups_df(
     sample_index: pd.Index,
     cluster_labels: np.ndarray | None = None,
@@ -73,6 +76,7 @@ def make_groups_df(
         groups["group"] = pd.Series(cluster_labels, index=sample_index).astype(str)
 
     return groups
+
 
 def add_labels_to_groups(
     groups_df: pd.DataFrame,
@@ -117,6 +121,7 @@ def add_labels_to_groups(
 
     return out
 
+
 def cluster_samples(
     exposures: pd.DataFrame,
     max_clusters: int = 6,
@@ -154,6 +159,7 @@ def cluster_samples(
             best_labels = labels
 
     return best_labels if best_k is not None else None
+
 
 def validate_input_matrix(matrix: pd.DataFrame) -> np.ndarray:
     """
@@ -193,7 +199,7 @@ def run_nmf(
     alpha_W: float = 0.0,
     alpha_H: float = 0.0,
     l1_ratio: float = 0.0,
-    max_clusters: int = 1  # <=1 means "no clustering"
+    max_clusters: int = 1,  # <=1 means "no clustering"
 ) -> NMFResult:
     """
     Run NMF decomposition on a STR mutation count matrix.
@@ -230,7 +236,7 @@ def run_nmf(
     W = model.fit_transform(values)
     H = model.components_
 
-    signature_labels = [f"Signature_{k+1}" for k in range(n_signatures)]
+    signature_labels = [f"Signature_{k + 1}" for k in range(n_signatures)]
 
     signatures_df = pd.DataFrame(
         H.T,
@@ -273,12 +279,14 @@ def run_nmf(
         signatures=signatures_df,
         exposures=exposures_df,
         groups=groups_df,
-        model_params=model_params
+        model_params=model_params,
     )
+
 
 # ---------------------------------------------------------------------------
 # Saving / loading
 # ---------------------------------------------------------------------------
+
 
 def save_nmf_result(result: NMFResult, outdir: str | Path) -> None:
     """
@@ -342,7 +350,8 @@ def load_nmf_result(outdir: str | Path) -> NMFResult:
             f"NMF metadata format_version={metadata['format_version']} "
             f"differs from current FORMAT_VERSION={FORMAT_VERSION}. "
             "Results should still load, but fields may have changed.",
-            RuntimeWarning, stacklevel=2,
+            RuntimeWarning,
+            stacklevel=2,
         )
 
     # Groups: load if present; otherwise default to "1"
@@ -360,18 +369,18 @@ def load_nmf_result(outdir: str | Path) -> NMFResult:
         expected = tuple(metadata["signatures_shape"])
         if signatures.shape != expected:
             warnings.warn(
-                f"Loaded signatures shape {signatures.shape} "
-                f"does not match metadata {expected}.",
-                RuntimeWarning, stacklevel=2,
+                f"Loaded signatures shape {signatures.shape} does not match metadata {expected}.",
+                RuntimeWarning,
+                stacklevel=2,
             )
 
     if "exposures_shape" in metadata:
         expected = tuple(metadata["exposures_shape"])
         if exposures.shape != expected:
             warnings.warn(
-                f"Loaded exposures shape {exposures.shape} "
-                f"does not match metadata {expected}.",
-                RuntimeWarning, stacklevel=2,
+                f"Loaded exposures shape {exposures.shape} does not match metadata {expected}.",
+                RuntimeWarning,
+                stacklevel=2,
             )
 
     return NMFResult(
@@ -410,14 +419,9 @@ def validate_projection_inputs(
         raise ValueError("signatures must be non-negative.")
 
     # Align features: new_matrix columns vs signatures index
-    common_features = list(
-        new_matrix.columns.intersection(signatures.index)
-    )
+    common_features = list(new_matrix.columns.intersection(signatures.index))
     if not common_features:
-        raise ValueError(
-            "No overlapping features between new_matrix.columns "
-            "and signatures.index."
-        )
+        raise ValueError("No overlapping features between new_matrix.columns and signatures.index.")
 
     # Warn if many are missing
     frac_missing = 1.0 - len(common_features) / len(signatures.index)
@@ -425,7 +429,8 @@ def validate_projection_inputs(
         warnings.warn(
             f"Only {len(common_features)} of {len(signatures.index)} signature features "
             f"are present in new_matrix (~{100 * (1 - frac_missing):.1f}% overlap).",
-            RuntimeWarning, stacklevel=2,
+            RuntimeWarning,
+            stacklevel=2,
         )
 
     # Subset and order both sides by common_features
@@ -435,7 +440,7 @@ def validate_projection_inputs(
     return new_sub, sig_sub, common_features
 
 
-def project_onto_signatures (
+def project_onto_signatures(
     new_matrix: pd.DataFrame,
     signatures: pd.DataFrame,
     method: str = "nnls",
@@ -484,9 +489,7 @@ def project_onto_signatures (
             "Install scipy or choose another projection method."
         )
 
-    new_sub, sig_sub, common_features = validate_projection_inputs(
-        new_matrix, signatures
-    )
+    new_sub, sig_sub, common_features = validate_projection_inputs(new_matrix, signatures)
 
     # A: F x K
     A = sig_sub.to_numpy(dtype=float)
