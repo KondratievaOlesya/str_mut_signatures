@@ -206,17 +206,41 @@ def plot_pca_samples(
     if ax is None:
         fig, ax = plt.subplots()
 
-    # plot per group to get a correct categorical legend
-    for g, sub in plot_df.groupby("group", dropna=False):
+    # autodetect continuous (numeric) vs categorical
+    is_numeric = pd.api.types.is_numeric_dtype(plot_df["group"])
+    n_non_null = int(plot_df["group"].notna().sum())
+
+    # use nunique(dropna=True) so NaNs don't inflate uniqueness
+    n_unique = int(plot_df["group"].nunique(dropna=True)) if n_non_null > 0 else 0
+    unique_frac = (n_unique / n_non_null) if n_non_null > 0 else 0.0
+
+    is_continuous = bool(is_numeric and (n_unique > 10 or unique_frac > 0.30))
+    if is_continuous:
+        cmap = plt.get_cmap("viridis")
+        norm = plt.Normalize(vmin=plot_df["group"].min(), vmax=plot_df["group"].max())
+        colors = cmap(norm(plot_df["group"]))
         ax.scatter(
-            sub["PC1"].to_numpy(),
-            sub["PC2"].to_numpy(),
+            plot_df["PC1"].to_numpy(),
+            plot_df["PC2"].to_numpy(),
+            c=colors,
             alpha=alpha,
             s=s,
-            label=str(g),
         )
+        mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+        mappable.set_array([])
+        plt.colorbar(mappable, ax=ax, label="Group")
+    else:
+        # plot per group to get a correct categorical legend
+        for g, sub in plot_df.groupby("group", dropna=False):
+            ax.scatter(
+                sub["PC1"].to_numpy(),
+                sub["PC2"].to_numpy(),
+                alpha=alpha,
+                s=s,
+                label=str(g),
+            )
 
-    ax.legend(title="Group", fontsize="small")
+        ax.legend(title="Group", fontsize="small")
 
     # axis labels with % variance
     pc1_var = var_ratio[0] * 100 if len(var_ratio) > 0 else None
@@ -322,6 +346,7 @@ def plot_signatures(
 # ---------------------------------------------------------------------
 # Exposure / sample plots
 # ---------------------------------------------------------------------
+
 
 def build_exposure_table(
     exposures: pd.DataFrame, groups: pd.DataFrame | None = None
@@ -429,9 +454,11 @@ def plot_one_panel(
     fig.tight_layout()
     return fig
 
+
 def signature_sort_key(name: str) -> int:
     m = re.match(r"^Signature_(\d+)$", str(name))
     return int(m.group(1)) if m else 10**9  # non-matching go last
+
 
 def plot_exposures(
     result: NMFResult,
@@ -454,7 +481,7 @@ def plot_exposures(
     if not isinstance(exp, pd.DataFrame):
         raise TypeError("result.exposures must be a pandas.DataFrame.")
 
-    # ---- build one table: exposures + group (aligned) ----
+    # ---- build one table: exposures + group ----
     groups = getattr(result, "groups", None)
     if isinstance(groups, pd.DataFrame) and (not groups.empty) and ("group" in groups.columns):
         df = exp.join(groups[["group"]], how="inner")
@@ -476,7 +503,9 @@ def plot_exposures(
     df_prop = df.copy()
     totals = df_prop[sig_cols].sum(axis=1).replace(0, np.nan)
     df_prop[sig_cols] = df_prop[sig_cols].div(totals, axis=0).fillna(0.0)
-    df_prop = df_prop.sort_values(by=["group"] + sig_cols, ascending=[True] + [False]*len(sig_cols), kind="mergesort")
+    df_prop = df_prop.sort_values(
+        by=["group"] + sig_cols, ascending=[True] + [False] * len(sig_cols), kind="mergesort"
+    )
     # ---- chunking (multiple figures if many samples) ----
     n = df.shape[0]
     if max_samples_per_fig is None or n <= max_samples_per_fig:

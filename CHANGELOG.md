@@ -33,6 +33,11 @@ as far as reasonably possible for a research codebase.
 
     * Colors samples **exclusively using `NMFResult.groups`**
     * Automatically aligns PCA coordinates and group labels by sample ID
+     * Automatically detects whether `group` is **continuous** vs **categorical**:
+        * Treats `group` as continuous only if it is numeric **and** has sufficient diversity
+          (more than **10** unique non-null values **or** > **30%** unique fraction)
+        * Continuous groups are shown with a **color gradient + colorbar**
+        * Categorical groups are shown with **separate legend entries**
     * Does **not** perform clustering internally
     * Returns:
 
