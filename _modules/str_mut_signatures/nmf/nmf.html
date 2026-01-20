@@ -1,0 +1,823 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>str_mut_signatures.nmf.nmf &mdash; str_mut_signatures 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            str_mut_signatures
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main functionality</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cli.html">Command-line interface</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">str_mut_signatures</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">str_mut_signatures.nmf.nmf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for str_mut_signatures.nmf.nmf</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">nnls</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">KMeans</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">NMF</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">silhouette_score</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="c1"># Python 3.11+</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># Python &lt; 3.11</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">timezone</span>
+
+    <span class="n">UTC</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span>
+<span class="n">FORMAT_VERSION</span> <span class="o">=</span> <span class="mi">1</span>
+
+
+<div class="viewcode-block" id="NMFResult">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.NMFResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">NMFResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for NMF-based STR mutation signature decomposition.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    signatures : pandas.DataFrame</span>
+<span class="sd">        :no-index:</span>
+<span class="sd">        Matrix of signature profiles.</span>
+
+<span class="sd">        - index   : features (same as input ``matrix.columns``)</span>
+<span class="sd">        - columns : signatures (``Signature_1``, ``Signature_2``, ...)</span>
+
+<span class="sd">    exposures : pandas.DataFrame</span>
+<span class="sd">        :no-index:</span>
+<span class="sd">        Matrix of sample exposures to each signature.</span>
+
+<span class="sd">        - index   : samples (same as input ``matrix.index``)</span>
+<span class="sd">        - columns : signatures (``Signature_1``, ``Signature_2``, ...)</span>
+
+<span class="sd">    groups : pandas.DataFrame</span>
+<span class="sd">        :no-index:</span>
+<span class="sd">        Sample-level grouping or annotation table aligned to exposures.</span>
+<span class="sd">        Typically indexed by sample (same as input ``matrix.index``).</span>
+
+<span class="sd">    model_params : dict[str, Any]</span>
+<span class="sd">        :no-index:</span>
+<span class="sd">        Hyperparameters and metadata used to fit the model</span>
+<span class="sd">        (e.g. ``n_signatures``, ``init``, ``max_iter``, ``random_state``).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">signatures</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">exposures</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">groups</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">model_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">make_groups_df</span><span class="p">(</span>
+    <span class="n">sample_index</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">,</span>
+    <span class="n">cluster_labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a groups DataFrame indexed by samples.</span>
+
+<span class="sd">    The returned DataFrame always contains at least one column:</span>
+
+<span class="sd">    - ``group``: string labels for each sample (default: ``&quot;1&quot;`` for all samples)</span>
+
+<span class="sd">    If ``cluster_labels`` is provided, the ``group`` column is overwritten with</span>
+<span class="sd">    the corresponding cluster identifiers (converted to strings).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sample_index : pandas.Index</span>
+<span class="sd">        Index of sample identifiers to use for the resulting DataFrame.</span>
+<span class="sd">    cluster_labels : numpy.ndarray or None, optional</span>
+<span class="sd">        Array of cluster labels aligned with ``sample_index``.</span>
+<span class="sd">        If provided, these labels are used to populate the ``group`` column.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Groups DataFrame indexed by sample, with at least a ``&quot;group&quot;`` column.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">sample_index</span><span class="p">)</span>
+    <span class="n">groups</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+
+    <span class="k">if</span> <span class="n">cluster_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cluster_labels</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_index</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;cluster_labels length must match number of samples &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_labels</span><span class="p">)</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sample_index</span><span class="p">)</span><span class="si">}</span><span class="s2">).&quot;</span>
+            <span class="p">)</span>
+        <span class="n">groups</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">cluster_labels</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">sample_index</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">groups</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">add_labels_to_groups</span><span class="p">(</span>
+    <span class="n">groups_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">label_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;label&quot;</span><span class="p">,</span>
+    <span class="n">allow_missing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add external labels to a groups DataFrame by sample index.</span>
+
+<span class="sd">    Labels are merged into ``groups_df`` using the sample identifier as index.</span>
+<span class="sd">    All samples present in ``groups_df`` are preserved in the output.</span>
+
+<span class="sd">    The ``labels`` input may be provided in one of the following forms:</span>
+
+<span class="sd">    - :class:`pandas.Series` with sample IDs as index.</span>
+<span class="sd">    - :class:`pandas.DataFrame` with sample IDs as index and either:</span>
+<span class="sd">        * a single column, or</span>
+<span class="sd">        * a column named according to ``label_col``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    groups_df : pandas.DataFrame</span>
+<span class="sd">        Groups DataFrame indexed by sample identifier.</span>
+<span class="sd">    labels : pandas.Series or pandas.DataFrame</span>
+<span class="sd">        External labels aligned by sample index.</span>
+<span class="sd">    label_col : str, optional</span>
+<span class="sd">        Name of the column to use or create for the merged labels.</span>
+<span class="sd">        Default is ``&quot;label&quot;``.</span>
+<span class="sd">    allow_missing : bool, optional</span>
+<span class="sd">        Whether to allow missing labels for some samples.</span>
+<span class="sd">        If ``False``, a :class:`ValueError` is raised when missing labels are found.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Copy of ``groups_df`` with an additional ``label_col`` column</span>
+<span class="sd">        containing the merged labels.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``allow_missing`` is ``False`` and some samples in ``groups_df``</span>
+<span class="sd">        have no corresponding label in ``labels``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">groups_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">):</span>
+        <span class="n">lab</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">label_col</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">label_col</span> <span class="ow">in</span> <span class="n">labels</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">lab</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">label_col</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">lab</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">label_col</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;labels DataFrame must have column &#39;</span><span class="si">{</span><span class="n">label_col</span><span class="si">}</span><span class="s2">&#39; or exactly one column.&quot;</span>
+            <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;labels must be a pandas Series or DataFrame.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Align by index (sample id)</span>
+    <span class="n">out</span><span class="p">[</span><span class="n">label_col</span><span class="p">]</span> <span class="o">=</span> <span class="n">lab</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_missing</span> <span class="ow">and</span> <span class="n">out</span><span class="p">[</span><span class="n">label_col</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="n">label_col</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Missing labels for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples (first 10): </span><span class="si">{</span><span class="n">missing</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">cluster_samples</span><span class="p">(</span>
+    <span class="n">exposures</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">max_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cluster samples using KMeans and select the best ``k`` via silhouette score.</span>
+
+<span class="sd">    Clustering is performed on the rows of ``exposures`` (one row per sample).</span>
+<span class="sd">    The number of clusters is selected by evaluating silhouette scores for</span>
+<span class="sd">    candidate values of ``k`` up to ``max_clusters``.</span>
+
+<span class="sd">    If clustering cannot be performed (e.g., too few samples or invalid input),</span>
+<span class="sd">    the function returns ``None``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    exposures : pandas.DataFrame</span>
+<span class="sd">        Sample-by-signature exposure matrix. Rows correspond to samples and</span>
+<span class="sd">        columns correspond to signatures.</span>
+<span class="sd">    max_clusters : int, optional</span>
+<span class="sd">        Maximum number of clusters to consider. Default is 6.</span>
+<span class="sd">    random_state : int or None, optional</span>
+<span class="sd">        Random seed passed to KMeans for reproducibility. If ``None``, the</span>
+<span class="sd">        estimator is not seeded.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray or None</span>
+<span class="sd">        Array of cluster labels (``0`` .. ``k-1``) in the same order as</span>
+<span class="sd">        ``exposures.index``, or ``None`` if clustering is not possible.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_samples</span> <span class="o">=</span> <span class="n">exposures</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">n_samples</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">exposures</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">best_k</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">best_score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+    <span class="n">best_labels</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_clusters</span><span class="p">,</span> <span class="n">n_samples</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">km</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="n">n_clusters</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">n_init</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">fit_predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labels</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">silhouette_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;</span> <span class="n">best_score</span><span class="p">:</span>
+            <span class="n">best_score</span> <span class="o">=</span> <span class="n">score</span>
+            <span class="n">best_k</span> <span class="o">=</span> <span class="n">k</span>
+            <span class="n">best_labels</span> <span class="o">=</span> <span class="n">labels</span>
+
+    <span class="k">return</span> <span class="n">best_labels</span> <span class="k">if</span> <span class="n">best_k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_input_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validate that the input is a non-empty, numeric, non-negative matrix.</span>
+
+<span class="sd">    This function checks that ``matrix`` is:</span>
+
+<span class="sd">    - A :class:`pandas.DataFrame`</span>
+<span class="sd">    - Non-empty</span>
+<span class="sd">    - Fully numeric</span>
+<span class="sd">    - Contains no negative values</span>
+
+<span class="sd">    On success, the underlying numeric values are returned as a NumPy array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : pandas.DataFrame</span>
+<span class="sd">        Input matrix with samples as rows and features as columns.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        The underlying numeric array with shape</span>
+<span class="sd">        ``(n_samples, n_features)``.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the input is empty, contains non-numeric values, or contains</span>
+<span class="sd">        negative entries.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;matrix must be a pandas.DataFrame&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;matrix is empty; NMF requires a non-empty matrix.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Ensure numeric dtype</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">matrix</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">values</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;matrix must contain only numeric values.&quot;</span><span class="p">)</span>
+
+    <span class="n">values</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">values</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;NMF requires a non-negative matrix; found negative entries.&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">values</span>
+
+
+<div class="viewcode-block" id="run_nmf">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.run_nmf">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">run_nmf</span><span class="p">(</span>
+    <span class="n">matrix</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">n_signatures</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">init</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;nndsvd&quot;</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">alpha_W</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">alpha_H</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">l1_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">max_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># &lt;=1 means &quot;no clustering&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NMFResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Run NMF decomposition on an STR mutation count matrix.</span>
+
+<span class="sd">    This function factorizes a non-negative mutation count matrix into:</span>
+
+<span class="sd">    - signature profiles (feature-by-signature)</span>
+<span class="sd">    - sample exposures (sample-by-signature)</span>
+
+<span class="sd">    Optionally, samples can be clustered based on their exposure profiles.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : pandas.DataFrame</span>
+<span class="sd">        Non-negative count matrix.</span>
+
+<span class="sd">        - rows    : samples</span>
+<span class="sd">        - columns : mutation feature categories</span>
+<span class="sd">    n_signatures : int</span>
+<span class="sd">        Number of signatures (components) to extract.</span>
+<span class="sd">    init : str, optional</span>
+<span class="sd">        Initialization method for NMF (passed to the underlying estimator).</span>
+<span class="sd">        Default is ``&quot;nndsvd&quot;``.</span>
+<span class="sd">    max_iter : int, optional</span>
+<span class="sd">        Maximum number of iterations. Default is 200.</span>
+<span class="sd">    random_state : int or None, optional</span>
+<span class="sd">        Random seed for reproducibility. If ``None``, the estimator is not seeded.</span>
+<span class="sd">        Default is 0.</span>
+<span class="sd">    alpha_W : float, optional</span>
+<span class="sd">        Regularization parameter for the W matrix (exposures), if supported by</span>
+<span class="sd">        the chosen NMF implementation. Default is 0.0.</span>
+<span class="sd">    alpha_H : float, optional</span>
+<span class="sd">        Regularization parameter for the H matrix (signatures), if supported by</span>
+<span class="sd">        the chosen NMF implementation. Default is 0.0.</span>
+<span class="sd">    l1_ratio : float, optional</span>
+<span class="sd">        The Elastic-Net mixing parameter, with ``0 &lt;= l1_ratio &lt;= 1``.</span>
+<span class="sd">        Default is 0.0.</span>
+<span class="sd">    max_clusters : int, optional</span>
+<span class="sd">        Maximum number of clusters to consider for optional exposure-based</span>
+<span class="sd">        clustering. Values ``&lt;= 1`` disable clustering. Default is 1.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    NMFResult</span>
+<span class="sd">        Container with signature profiles, exposures, optional grouping</span>
+<span class="sd">        information, and model parameters.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``matrix`` is empty, contains non-numeric values, or contains</span>
+<span class="sd">        negative entries.</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``n_signatures`` is not a positive integer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">validate_input_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+
+    <span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">n_signatures</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_signatures must be a positive integer.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_signatures</span> <span class="o">&gt;</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;n_signatures (</span><span class="si">{</span><span class="n">n_signatures</span><span class="si">}</span><span class="s2">) cannot exceed &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;min(n_samples, n_features) = </span><span class="si">{</span><span class="nb">min</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span><span class="w"> </span><span class="n">n_features</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">NMF</span><span class="p">(</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="n">n_signatures</span><span class="p">,</span>
+        <span class="n">init</span><span class="o">=</span><span class="n">init</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="n">alpha_W</span><span class="o">=</span><span class="n">alpha_W</span><span class="p">,</span>
+        <span class="n">alpha_H</span><span class="o">=</span><span class="n">alpha_H</span><span class="p">,</span>
+        <span class="n">l1_ratio</span><span class="o">=</span><span class="n">l1_ratio</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># W: samples x K (exposures), H: K x features (signatures)</span>
+    <span class="n">W</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">H</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">components_</span>
+
+    <span class="n">signature_labels</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Signature_</span><span class="si">{</span><span class="n">k</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_signatures</span><span class="p">)]</span>
+
+    <span class="n">signatures_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="n">H</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">matrix</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span>
+        <span class="n">columns</span><span class="o">=</span><span class="n">signature_labels</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">exposures_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="n">W</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">matrix</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+        <span class="n">columns</span><span class="o">=</span><span class="n">signature_labels</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">cluster_labels</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">max_clusters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_clusters</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">cluster_labels</span> <span class="o">=</span> <span class="n">cluster_samples</span><span class="p">(</span>
+            <span class="n">exposures_df</span><span class="p">,</span>
+            <span class="n">max_clusters</span><span class="o">=</span><span class="n">max_clusters</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="n">groups_df</span> <span class="o">=</span> <span class="n">make_groups_df</span><span class="p">(</span><span class="n">exposures_df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">cluster_labels</span><span class="o">=</span><span class="n">cluster_labels</span><span class="p">)</span>
+
+    <span class="n">model_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;n_signatures&quot;</span><span class="p">:</span> <span class="n">n_signatures</span><span class="p">,</span>
+        <span class="s2">&quot;init&quot;</span><span class="p">:</span> <span class="n">init</span><span class="p">,</span>
+        <span class="s2">&quot;max_iter&quot;</span><span class="p">:</span> <span class="n">max_iter</span><span class="p">,</span>
+        <span class="s2">&quot;random_state&quot;</span><span class="p">:</span> <span class="n">random_state</span><span class="p">,</span>
+        <span class="s2">&quot;alpha_W&quot;</span><span class="p">:</span> <span class="n">alpha_W</span><span class="p">,</span>
+        <span class="s2">&quot;alpha_H&quot;</span><span class="p">:</span> <span class="n">alpha_H</span><span class="p">,</span>
+        <span class="s2">&quot;l1_ratio&quot;</span><span class="p">:</span> <span class="n">l1_ratio</span><span class="p">,</span>
+        <span class="s2">&quot;reconstruction_err_&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;reconstruction_err_&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)),</span>
+        <span class="s2">&quot;n_iter_&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;n_iter_&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)),</span>
+        <span class="s2">&quot;format_version&quot;</span><span class="p">:</span> <span class="n">FORMAT_VERSION</span><span class="p">,</span>
+        <span class="s2">&quot;max_clusters&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_clusters</span><span class="p">)</span> <span class="k">if</span> <span class="n">max_clusters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;n_groups&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">groups_df</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()),</span>
+        <span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">UTC</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">NMFResult</span><span class="p">(</span>
+        <span class="n">signatures</span><span class="o">=</span><span class="n">signatures_df</span><span class="p">,</span>
+        <span class="n">exposures</span><span class="o">=</span><span class="n">exposures_df</span><span class="p">,</span>
+        <span class="n">groups</span><span class="o">=</span><span class="n">groups_df</span><span class="p">,</span>
+        <span class="n">model_params</span><span class="o">=</span><span class="n">model_params</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Saving / loading</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="save_nmf_result">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.save_nmf_result">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_nmf_result</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">NMFResult</span><span class="p">,</span> <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save an :class:`NMFResult` to a directory on disk.</span>
+
+<span class="sd">    This function writes the main components of the NMF decomposition to</span>
+<span class="sd">    tabular and JSON files in the specified output directory.</span>
+
+<span class="sd">    The following files are created:</span>
+
+<span class="sd">    - ``signatures.tsv``:</span>
+<span class="sd">        Signature profiles (features × K).</span>
+<span class="sd">    - ``exposures.tsv``:</span>
+<span class="sd">        Sample exposures (samples × K).</span>
+<span class="sd">    - ``metadata.json``:</span>
+<span class="sd">        JSON file containing ``model_params`` together with basic shape</span>
+<span class="sd">        information and a ``format_version`` field.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    result : NMFResult</span>
+<span class="sd">        Result object containing signatures, exposures, groups, and model</span>
+<span class="sd">        parameters to be saved.</span>
+<span class="sd">    outdir : str or pathlib.Path</span>
+<span class="sd">        Output directory where result files will be written.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">outpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+    <span class="n">outpath</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">sig_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;signatures.tsv&quot;</span>
+    <span class="n">exp_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;exposures.tsv&quot;</span>
+    <span class="n">meta_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;metadata.json&quot;</span>
+    <span class="n">groups_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;groups.tsv&quot;</span>
+
+    <span class="n">result</span><span class="o">.</span><span class="n">signatures</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">sig_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">exposures</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">exp_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">groups_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Add a bit of structural metadata</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">model_params</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;format_version&quot;</span><span class="p">,</span> <span class="n">FORMAT_VERSION</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;signatures_shape&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">signatures</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;exposures_shape&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">exposures</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;signature_columns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">signatures</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;exposure_columns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">exposures</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;groups_columns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+    <span class="n">meta_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="load_nmf_result">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.load_nmf_result">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_nmf_result</span><span class="p">(</span><span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NMFResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load an :class:`NMFResult` previously saved with :func:`save_nmf_result`.</span>
+
+<span class="sd">    This function reads the files created by ``save_nmf_result`` from the given</span>
+<span class="sd">    directory and reconstructs the corresponding :class:`NMFResult` object.</span>
+
+<span class="sd">    The following files are expected in ``outdir``:</span>
+
+<span class="sd">    - ``signatures.tsv``:</span>
+<span class="sd">        Signature profiles (features × K).</span>
+<span class="sd">    - ``exposures.tsv``:</span>
+<span class="sd">        Sample exposures (samples × K).</span>
+<span class="sd">    - ``metadata.json``:</span>
+<span class="sd">        JSON file containing model parameters and basic shape information.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    outdir : str or pathlib.Path</span>
+<span class="sd">        Directory containing the saved NMF result files.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    NMFResult</span>
+<span class="sd">        Reconstructed NMF result with signatures, exposures, groups (if present),</span>
+<span class="sd">        and model parameters.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">outpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+
+    <span class="n">sig_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;signatures.tsv&quot;</span>
+    <span class="n">exp_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;exposures.tsv&quot;</span>
+    <span class="n">meta_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;metadata.json&quot;</span>
+    <span class="n">groups_path</span> <span class="o">=</span> <span class="n">outpath</span> <span class="o">/</span> <span class="s2">&quot;groups.tsv&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sig_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing signatures file: </span><span class="si">{</span><span class="n">sig_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">exp_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing exposures file: </span><span class="si">{</span><span class="n">exp_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">meta_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing metadata file: </span><span class="si">{</span><span class="n">meta_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">signatures</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">sig_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">exposures</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">exp_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">meta_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">())</span>
+
+    <span class="c1"># Basic sanity checks (non-fatal: warn instead of raising)</span>
+    <span class="k">if</span> <span class="s2">&quot;format_version&quot;</span> <span class="ow">in</span> <span class="n">metadata</span> <span class="ow">and</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;format_version&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">FORMAT_VERSION</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;NMF metadata format_version=</span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;format_version&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;differs from current FORMAT_VERSION=</span><span class="si">{</span><span class="n">FORMAT_VERSION</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="s2">&quot;Results should still load, but fields may have changed.&quot;</span><span class="p">,</span>
+            <span class="ne">RuntimeWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Groups: load if present; otherwise default to &quot;1&quot;</span>
+    <span class="k">if</span> <span class="n">groups_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">groups_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># enforce alignment</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">groups</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">exposures</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;group&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">groups</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">groups</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+        <span class="n">groups</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">groups</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">make_groups_df</span><span class="p">(</span><span class="n">exposures</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s2">&quot;signatures_shape&quot;</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">:</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;signatures_shape&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">signatures</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Loaded signatures shape </span><span class="si">{</span><span class="n">signatures</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> does not match metadata </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">,</span>
+                <span class="ne">RuntimeWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">if</span> <span class="s2">&quot;exposures_shape&quot;</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">:</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;exposures_shape&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">exposures</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Loaded exposures shape </span><span class="si">{</span><span class="n">exposures</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> does not match metadata </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">,</span>
+                <span class="ne">RuntimeWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">NMFResult</span><span class="p">(</span>
+        <span class="n">signatures</span><span class="o">=</span><span class="n">signatures</span><span class="p">,</span>
+        <span class="n">exposures</span><span class="o">=</span><span class="n">exposures</span><span class="p">,</span>
+        <span class="n">groups</span><span class="o">=</span><span class="n">groups</span><span class="p">,</span>
+        <span class="n">model_params</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Projection of new data onto existing signatures</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_projection_inputs</span><span class="p">(</span>
+    <span class="n">new_matrix</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">signatures</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">new_matrix</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;new_matrix must be a pandas.DataFrame.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signatures</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;signatures must be a pandas.DataFrame.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">new_matrix</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;new_matrix is empty; nothing to project.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">signatures</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;signatures is empty; nothing to project onto.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">new_matrix</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">values</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;new_matrix must contain only numeric values.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">signatures</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">values</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;signatures must contain only numeric values.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">new_matrix</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;new_matrix must be non-negative for NMF-based projection.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">signatures</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;signatures must be non-negative.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Align features: new_matrix columns vs signatures index</span>
+    <span class="n">common_features</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">new_matrix</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">signatures</span><span class="o">.</span><span class="n">index</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">common_features</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No overlapping features between new_matrix.columns and signatures.index.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Warn if many are missing</span>
+    <span class="n">frac_missing</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_features</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">signatures</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">frac_missing</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">common_features</span><span class="p">)</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">signatures</span><span class="o">.</span><span class="n">index</span><span class="p">)</span><span class="si">}</span><span class="s2"> signature features &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;are present in new_matrix (~</span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">frac_missing</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">% overlap).&quot;</span><span class="p">,</span>
+            <span class="ne">RuntimeWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Subset and order both sides by common_features</span>
+    <span class="n">new_sub</span> <span class="o">=</span> <span class="n">new_matrix</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">common_features</span><span class="p">]</span>
+    <span class="n">sig_sub</span> <span class="o">=</span> <span class="n">signatures</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_features</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="k">return</span> <span class="n">new_sub</span><span class="p">,</span> <span class="n">sig_sub</span><span class="p">,</span> <span class="n">common_features</span>
+
+
+<div class="viewcode-block" id="project_onto_signatures">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.project_onto_signatures">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">project_onto_signatures</span><span class="p">(</span>
+    <span class="n">new_matrix</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">signatures</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;nnls&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Project new samples onto existing signatures to obtain exposures.</span>
+
+<span class="sd">    This function computes exposure weights for each new sample given a fixed</span>
+<span class="sd">    set of signature profiles.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    new_matrix : pandas.DataFrame</span>
+<span class="sd">        Matrix of new samples.</span>
+
+<span class="sd">        - rows    : samples</span>
+<span class="sd">        - columns : features (must overlap ``signatures.index``)</span>
+<span class="sd">    signatures : pandas.DataFrame</span>
+<span class="sd">        Signature profile matrix.</span>
+
+<span class="sd">        - index   : features (same feature space as ``new_matrix.columns``)</span>
+<span class="sd">        - columns : signatures (e.g., ``&quot;Signature_1&quot;``, ``&quot;Signature_2&quot;``, ...)</span>
+<span class="sd">    method : {&quot;nnls&quot;}, optional</span>
+<span class="sd">        Projection method. Currently only non-negative least squares</span>
+<span class="sd">        (``&quot;nnls&quot;``) is implemented.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Exposure matrix for the new samples.</span>
+
+<span class="sd">        - rows    : samples (same as ``new_matrix.index``)</span>
+<span class="sd">        - columns : signatures (same as ``signatures.columns``)</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    For ``method=&quot;nnls&quot;``, for each sample vector ``x`` (1 × F) the exposures</span>
+<span class="sd">    ``e`` are obtained by solving::</span>
+
+<span class="sd">        minimize || x - A e ||_2   subject to e &gt;= 0</span>
+
+<span class="sd">    where ``A`` is the feature-by-signature matrix (F × K).</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``method`` is not supported or if there is no overlap between</span>
+<span class="sd">        ``new_matrix.columns`` and ``signatures.index``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">!=</span> <span class="s2">&quot;nnls&quot;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Only method=&quot;nnls&quot; is currently supported.&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">nnls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">&quot;scipy is required for method=&#39;nnls&#39;. &quot;</span>
+            <span class="s2">&quot;Install scipy or choose another projection method.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">new_sub</span><span class="p">,</span> <span class="n">sig_sub</span><span class="p">,</span> <span class="n">common_features</span> <span class="o">=</span> <span class="n">validate_projection_inputs</span><span class="p">(</span><span class="n">new_matrix</span><span class="p">,</span> <span class="n">signatures</span><span class="p">)</span>
+
+    <span class="c1"># A: F x K</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">sig_sub</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">K</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">exposures</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">new_sub</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">K</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+    <span class="c1"># Solve NNLS per sample</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">row</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">new_sub</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()):</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">coeffs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nnls</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+        <span class="n">exposures</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">coeffs</span>
+
+    <span class="n">exposures_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="n">exposures</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">new_sub</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+        <span class="n">columns</span><span class="o">=</span><span class="n">sig_sub</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">exposures_df</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Olesia Kondrateva.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

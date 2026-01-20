@@ -1,0 +1,834 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Main functionality &mdash; str_mut_signatures 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=51b770b3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Command-line interface" href="cli.html" />
+    <link rel="prev" title="str_mut_signatures documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            str_mut_signatures
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Main functionality</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.parse_vcf_files"><code class="docutils literal notranslate"><span class="pre">parse_vcf_files()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.save_counts_matrix"><code class="docutils literal notranslate"><span class="pre">save_counts_matrix()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.process_vcf_to_rows"><code class="docutils literal notranslate"><span class="pre">process_vcf_to_rows()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.build_mutation_matrix"><code class="docutils literal notranslate"><span class="pre">build_mutation_matrix()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.filter_mutation_matrix"><code class="docutils literal notranslate"><span class="pre">filter_mutation_matrix()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.NMFResult"><code class="docutils literal notranslate"><span class="pre">NMFResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#str_mut_signatures.NMFResult.signatures"><code class="docutils literal notranslate"><span class="pre">NMFResult.signatures</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#str_mut_signatures.NMFResult.exposures"><code class="docutils literal notranslate"><span class="pre">NMFResult.exposures</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#str_mut_signatures.NMFResult.groups"><code class="docutils literal notranslate"><span class="pre">NMFResult.groups</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#str_mut_signatures.NMFResult.model_params"><code class="docutils literal notranslate"><span class="pre">NMFResult.model_params</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">NMFResult.signatures</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">NMFResult.exposures</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">NMFResult.groups</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">NMFResult.model_params</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.run_nmf"><code class="docutils literal notranslate"><span class="pre">run_nmf()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.save_nmf_result"><code class="docutils literal notranslate"><span class="pre">save_nmf_result()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.load_nmf_result"><code class="docutils literal notranslate"><span class="pre">load_nmf_result()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.project_onto_signatures"><code class="docutils literal notranslate"><span class="pre">project_onto_signatures()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.compute_pca"><code class="docutils literal notranslate"><span class="pre">compute_pca()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.plot_exposures"><code class="docutils literal notranslate"><span class="pre">plot_exposures()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.plot_pca_samples"><code class="docutils literal notranslate"><span class="pre">plot_pca_samples()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#str_mut_signatures.plot_signatures"><code class="docutils literal notranslate"><span class="pre">plot_signatures()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command-line interface</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">str_mut_signatures</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Main functionality</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-str_mut_signatures">
+<span id="main-functionality"></span><h1>Main functionality<a class="headerlink" href="#module-str_mut_signatures" title="Link to this heading"></a></h1>
+<p>Top-level package for str_mut_signatures.</p>
+<p>Analysis of Short Tandem Repeat (STR) mutation signatures from VCF files.
+Provides both library and CLI interfaces.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.parse_vcf_files">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">parse_vcf_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_pass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_perfect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/extract_mutations.html#parse_vcf_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.parse_vcf_files" title="Link to this definition"></a></dt>
+<dd><p>Process all VCF (<code class="docutils literal notranslate"><span class="pre">.vcf</span></code> / <code class="docutils literal notranslate"><span class="pre">.vcf.gz</span></code>) files in a directory into a DataFrame.</p>
+<p>Supports GangSTR and conSTRain STR-annotated VCFs, as well as VCFs annotated
+with <code class="docutils literal notranslate"><span class="pre">strvcf_annotator</span></code>.</p>
+<p>If a file causes an error, it is skipped and a message is printed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_dir</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – Directory containing <code class="docutils literal notranslate"><span class="pre">.vcf</span></code> or <code class="docutils literal notranslate"><span class="pre">.vcf.gz</span></code> files.</p></li>
+<li><p><strong>filter_by_pass</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, keep only records with <code class="docutils literal notranslate"><span class="pre">FILTER</span> <span class="pre">==</span> <span class="pre">&quot;PASS&quot;</span></code>.</p></li>
+<li><p><strong>filter_by_perfect</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, keep only records with <code class="docutils literal notranslate"><span class="pre">INFO/PERFECT</span> <span class="pre">!=</span> <span class="pre">&quot;FALSE&quot;</span></code> when present.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Parsed STR records concatenated across all input files.</p>
+<p>Columns:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sample</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tmp_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tumor_allele_a</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tumor_allele_b</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">normal_allele_a</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">normal_allele_b</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">end</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">period</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ref</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">motif</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">genotype_separator</span></code></p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.save_counts_matrix">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">save_counts_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mutations_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/extract_mutations.html#save_counts_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.save_counts_matrix" title="Link to this definition"></a></dt>
+<dd><p>Save a mutation counts matrix to a CSV file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mutations_data</strong> (<em>pandas.DataFrame</em>) – DataFrame containing mutation count data to be written to disk.</p></li>
+<li><p><strong>output_csv</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – Path to the output CSV file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.process_vcf_to_rows">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">process_vcf_to_rows</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_pass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_perfect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/extract_mutations.html#process_vcf_to_rows"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.process_vcf_to_rows" title="Link to this definition"></a></dt>
+<dd><p>Parse a single STR-annotated VCF into row dictionaries.</p>
+<p>Supports:</p>
+<ul class="simple">
+<li><p>GangSTR: uses <code class="docutils literal notranslate"><span class="pre">FORMAT/REPCN</span></code> as copy number</p></li>
+<li><p>conSTRain: uses <code class="docutils literal notranslate"><span class="pre">FORMAT/REPLEN</span></code> as copy number</p></li>
+<li><p>VCF annotated with <code class="docutils literal notranslate"><span class="pre">strvcf_annotator</span></code> (<code class="docutils literal notranslate"><span class="pre">INFO/RU</span></code>, <code class="docutils literal notranslate"><span class="pre">INFO/REF</span></code>, <code class="docutils literal notranslate"><span class="pre">FORMAT/REPCN</span></code>)</p></li>
+</ul>
+<section id="filtering-options">
+<h2>Filtering options<a class="headerlink" href="#filtering-options" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt>filter_by_pass</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code> (default), keep only records with <code class="docutils literal notranslate"><span class="pre">FILTER</span> <span class="pre">==</span> <span class="pre">&quot;PASS&quot;</span></code>.
+If <code class="docutils literal notranslate"><span class="pre">False</span></code>, ignore the <code class="docutils literal notranslate"><span class="pre">FILTER</span></code> field.</p>
+</dd>
+<dt>filter_by_perfect</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code> (default), and <code class="docutils literal notranslate"><span class="pre">INFO/PERFECT</span></code> is present, keep only records
+where <code class="docutils literal notranslate"><span class="pre">PERFECT</span> <span class="pre">!=</span> <span class="pre">&quot;FALSE&quot;</span></code> (i.e. skip variants where <code class="docutils literal notranslate"><span class="pre">PERFECT</span> <span class="pre">==</span> <span class="pre">&quot;FALSE&quot;</span></code>).
+If <code class="docutils literal notranslate"><span class="pre">False</span></code>, ignore the <code class="docutils literal notranslate"><span class="pre">PERFECT</span></code> flag completely.</p>
+</dd>
+</dl>
+</section>
+<section id="assumptions-after-validation">
+<h2>Assumptions after validation<a class="headerlink" href="#assumptions-after-validation" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>First sample column after <code class="docutils literal notranslate"><span class="pre">FORMAT</span></code> is NORMAL (index 9 in standard VCF).</p></li>
+<li><p>Second sample column after <code class="docutils literal notranslate"><span class="pre">FORMAT</span></code> is TUMOR (index 10).</p></li>
+<li><p>STR annotations are present in <code class="docutils literal notranslate"><span class="pre">INFO</span></code> / <code class="docutils literal notranslate"><span class="pre">FORMAT</span></code>.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">param path<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Path to the STR-annotated VCF file.</p>
+</dd>
+<dt class="field-even">type path<span class="colon">:</span></dt>
+<dd class="field-even"><p>str or pathlib.Path</p>
+</dd>
+<dt class="field-odd">param filter_by_pass<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Whether to keep only records with <code class="docutils literal notranslate"><span class="pre">FILTER</span> <span class="pre">==</span> <span class="pre">&quot;PASS&quot;</span></code>.</p>
+</dd>
+<dt class="field-even">type filter_by_pass<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool, optional</p>
+</dd>
+<dt class="field-odd">param filter_by_perfect<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Whether to filter by <code class="docutils literal notranslate"><span class="pre">INFO/PERFECT</span></code> when present.</p>
+</dd>
+<dt class="field-even">type filter_by_perfect<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool, optional</p>
+</dd>
+<dt class="field-odd">returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of dictionaries, one per parsed STR record.</p>
+</dd>
+<dt class="field-even">rtype<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[dict]</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.build_mutation_matrix">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">build_mutation_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mutations_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">ru_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ru</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'class'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'ru'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">change</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/tally.html#build_mutation_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.build_mutation_matrix" title="Link to this definition"></a></dt>
+<dd><p>Build a somatic STR mutation count matrix from paired tumor–normal data.</p>
+<p>This function converts per-locus STR mutation calls into a sample-by-feature
+count matrix. Feature definitions are controlled by repeat-unit length,
+repeat-unit content, reference length, and somatic change options.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mutations_data</strong> (<em>pandas.DataFrame</em>) – <p>Parsed STR mutation data, typically returned by
+<a class="reference internal" href="#str_mut_signatures.parse_vcf_files" title="str_mut_signatures.parse_vcf_files"><code class="xref py py-func docutils literal notranslate"><span class="pre">parse_vcf_files()</span></code></a>.</p>
+<p>Required columns include:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">sample</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">normal_allele_a</span></code>, <code class="docutils literal notranslate"><span class="pre">normal_allele_b</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tumor_allele_a</span></code>, <code class="docutils literal notranslate"><span class="pre">tumor_allele_b</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">motif</span></code> or <code class="docutils literal notranslate"><span class="pre">RU</span></code> (repeat unit sequence)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">genotype_separator</span></code> (<code class="docutils literal notranslate"><span class="pre">'|'</span></code>, <code class="docutils literal notranslate"><span class="pre">'/'</span></code>, or missing)</p></li>
+</ul>
+</p></li>
+<li><p><strong>ru_length</strong> (<em>bool</em><em>, </em><em>default True</em>) – If True, include the repeat-unit length as <code class="docutils literal notranslate"><span class="pre">LEN{len(motif)}</span></code>
+in the feature key.</p></li>
+<li><p><strong>ru</strong> (<em>{None</em><em>, </em><em>&quot;class&quot;</em><em>, </em><em>&quot;ru&quot;}</em><em>, </em><em>default None</em>) – <p>Controls how repeat-unit <em>content</em> is represented in the feature key.</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">None</span></code> :
+Do not include repeat-unit content.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;ru&quot;</span></code> :
+Use the full repeat-unit sequence (e.g. <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">AT</span></code>, <code class="docutils literal notranslate"><span class="pre">AAT</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;class&quot;</span></code> :
+Use base-composition class of the repeat unit:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">AT_only</span></code> : motif contains only A/T</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GC_only</span></code> : motif contains only G/C</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mixed</span></code> : mixed A/T and G/C</p></li>
+</ul>
+</li>
+</ul>
+</p></li>
+<li><p><strong>ref_length</strong> (<em>bool</em><em>, </em><em>default True</em>) – <p>If True, include a reference-length component derived from the
+normal allele repeat counts.</p>
+<ul>
+<li><p>Phased genotypes: per-allele normal repeat count</p></li>
+<li><p>Unphased genotypes: combined normal repeat count</p></li>
+</ul>
+</p></li>
+<li><p><strong>change</strong> (<em>bool</em><em>, </em><em>default True</em>) – <p>If True, include the tumor–normal repeat count change (delta) in
+the feature key and retain only non-zero changes (somatic events).</p>
+<p>If False, ignore delta and retain all loci that pass basic numeric
+checks, producing presence/absence-style summaries.</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>STR mutation count matrix with:</p>
+<ul class="simple">
+<li><p>rows: samples</p></li>
+<li><p>columns: STR mutation feature categories</p></li>
+<li><p>values: counts of allele-level or combined STR mutation events</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Phasing behavior is determined by <code class="docutils literal notranslate"><span class="pre">genotype_separator</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'|'</span></code> :
+Genotypes are treated as phased, producing two allele-level events
+per locus.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'/'</span></code> or missing :
+Genotypes are treated as unphased, producing a single combined event
+per locus based on total tumor vs. normal repeat counts.</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.filter_mutation_matrix">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">filter_mutation_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'manual'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'elbow'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'percentile'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'manual'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_feature_total</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_samples_with_feature</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_percentile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_sample_total</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">FilterSummary</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/filter.html#filter_mutation_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.filter_mutation_matrix" title="Link to this definition"></a></dt>
+<dd><p>Filter a mutation count matrix (samples × features) based on simple metrics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>matrix</strong> (<em>pandas.DataFrame</em>) – Mutation count matrix with samples as rows and mutation features as columns.</p></li>
+<li><p><strong>feature_method</strong> (<em>{&quot;manual&quot;</em><em>, </em><em>&quot;elbow&quot;</em><em>, </em><em>&quot;percentile&quot;}</em><em>, </em><em>optional</em>) – <p>Strategy for choosing a feature-level total-count threshold.</p>
+<ul>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;manual&quot;</span></code>:</dt><dd><p>Use <code class="docutils literal notranslate"><span class="pre">min_feature_total</span></code> directly.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;elbow&quot;</span></code>:</dt><dd><p>Ignore <code class="docutils literal notranslate"><span class="pre">min_feature_total</span></code> and use an elbow heuristic based on the
+distribution of feature total counts.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">&quot;percentile&quot;</span></code>:</dt><dd><p>Ignore <code class="docutils literal notranslate"><span class="pre">min_feature_total</span></code> and keep features whose total count is
+&gt;= the given percentile of the distribution.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</p></li>
+<li><p><strong>min_feature_total</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Minimal total count across all samples for a feature to be kept
+(only used when <code class="docutils literal notranslate"><span class="pre">feature_method=&quot;manual&quot;</span></code>). If <code class="docutils literal notranslate"><span class="pre">None</span></code>, no total-count
+threshold is applied.</p></li>
+<li><p><strong>min_samples_with_feature</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Minimal number of samples in which a feature must be non-zero.
+If <code class="docutils literal notranslate"><span class="pre">None</span></code>, no prevalence threshold is applied.</p></li>
+<li><p><strong>feature_percentile</strong> (<em>float</em><em>, </em><em>optional</em>) – When <code class="docutils literal notranslate"><span class="pre">feature_method=&quot;percentile&quot;</span></code>, features with <code class="docutils literal notranslate"><span class="pre">total_count</span></code> &gt;= the
+<code class="docutils literal notranslate"><span class="pre">feature_percentile</span></code> quantile of the distribution are kept.
+Must be between 0 and 1.</p></li>
+<li><p><strong>min_sample_total</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Minimal total count per sample to be kept.
+If <code class="docutils literal notranslate"><span class="pre">None</span></code>, no sample-level filter is applied.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>filtered_matrix</strong> (<em>pandas.DataFrame</em>) – Matrix with filtered samples/features.</p></li>
+<li><p><strong>summary</strong> (<em>FilterSummary</em>) – Structured summary containing:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_stats</span></code>: DataFrame of per-feature metrics</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sample_stats</span></code>: DataFrame of per-sample metrics</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_threshold_used</span></code>: int or None</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sample_threshold_used</span></code>: int or None</p></li>
+</ul>
+</li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">feature_method</span></code> is not one of <code class="docutils literal notranslate"><span class="pre">&quot;manual&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;elbow&quot;</span></code>, or
+    <code class="docutils literal notranslate"><span class="pre">&quot;percentile&quot;</span></code>.</p></li>
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">feature_method=&quot;percentile&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">feature_percentile</span></code> is not in
+    the interval <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="str_mut_signatures.NMFResult">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">NMFResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signatures</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exposures</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">groups</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/str_mut_signatures/nmf/nmf.html#NMFResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.NMFResult" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Container for NMF-based STR mutation signature decomposition.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="str_mut_signatures.NMFResult.signatures">
+<span class="sig-name descname"><span class="pre">signatures</span></span><a class="headerlink" href="#str_mut_signatures.NMFResult.signatures" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">No-index<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>Matrix of signature profiles.</p>
+<ul class="simple">
+<li><p>index   : features (same as input <code class="docutils literal notranslate"><span class="pre">matrix.columns</span></code>)</p></li>
+<li><p>columns : signatures (<code class="docutils literal notranslate"><span class="pre">Signature_1</span></code>, <code class="docutils literal notranslate"><span class="pre">Signature_2</span></code>, …)</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="str_mut_signatures.NMFResult.exposures">
+<span class="sig-name descname"><span class="pre">exposures</span></span><a class="headerlink" href="#str_mut_signatures.NMFResult.exposures" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">No-index<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>Matrix of sample exposures to each signature.</p>
+<ul class="simple">
+<li><p>index   : samples (same as input <code class="docutils literal notranslate"><span class="pre">matrix.index</span></code>)</p></li>
+<li><p>columns : signatures (<code class="docutils literal notranslate"><span class="pre">Signature_1</span></code>, <code class="docutils literal notranslate"><span class="pre">Signature_2</span></code>, …)</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="str_mut_signatures.NMFResult.groups">
+<span class="sig-name descname"><span class="pre">groups</span></span><a class="headerlink" href="#str_mut_signatures.NMFResult.groups" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">No-index<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>Sample-level grouping or annotation table aligned to exposures.
+Typically indexed by sample (same as input <code class="docutils literal notranslate"><span class="pre">matrix.index</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="str_mut_signatures.NMFResult.model_params">
+<span class="sig-name descname"><span class="pre">model_params</span></span><a class="headerlink" href="#str_mut_signatures.NMFResult.model_params" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">No-index<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>Hyperparameters and metadata used to fit the model
+(e.g. <code class="docutils literal notranslate"><span class="pre">n_signatures</span></code>, <code class="docutils literal notranslate"><span class="pre">init</span></code>, <code class="docutils literal notranslate"><span class="pre">max_iter</span></code>, <code class="docutils literal notranslate"><span class="pre">random_state</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">signatures</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataFrame</span></span><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">exposures</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataFrame</span></span><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataFrame</span></span><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">model_params</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.run_nmf">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">run_nmf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_signatures</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'nndsvd'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_W</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_H</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">l1_ratio</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_clusters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.nmf.nmf.NMFResult"><span class="pre">NMFResult</span></a></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/nmf.html#run_nmf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.run_nmf" title="Link to this definition"></a></dt>
+<dd><p>Run NMF decomposition on an STR mutation count matrix.</p>
+<p>This function factorizes a non-negative mutation count matrix into:</p>
+<ul class="simple">
+<li><p>signature profiles (feature-by-signature)</p></li>
+<li><p>sample exposures (sample-by-signature)</p></li>
+</ul>
+<p>Optionally, samples can be clustered based on their exposure profiles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>matrix</strong> (<em>pandas.DataFrame</em>) – <p>Non-negative count matrix.</p>
+<ul>
+<li><p>rows    : samples</p></li>
+<li><p>columns : mutation feature categories</p></li>
+</ul>
+</p></li>
+<li><p><strong>n_signatures</strong> (<em>int</em>) – Number of signatures (components) to extract.</p></li>
+<li><p><strong>init</strong> (<em>str</em><em>, </em><em>optional</em>) – Initialization method for NMF (passed to the underlying estimator).
+Default is <code class="docutils literal notranslate"><span class="pre">&quot;nndsvd&quot;</span></code>.</p></li>
+<li><p><strong>max_iter</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of iterations. Default is 200.</p></li>
+<li><p><strong>random_state</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Random seed for reproducibility. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, the estimator is not seeded.
+Default is 0.</p></li>
+<li><p><strong>alpha_W</strong> (<em>float</em><em>, </em><em>optional</em>) – Regularization parameter for the W matrix (exposures), if supported by
+the chosen NMF implementation. Default is 0.0.</p></li>
+<li><p><strong>alpha_H</strong> (<em>float</em><em>, </em><em>optional</em>) – Regularization parameter for the H matrix (signatures), if supported by
+the chosen NMF implementation. Default is 0.0.</p></li>
+<li><p><strong>l1_ratio</strong> (<em>float</em><em>, </em><em>optional</em>) – The Elastic-Net mixing parameter, with <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">l1_ratio</span> <span class="pre">&lt;=</span> <span class="pre">1</span></code>.
+Default is 0.0.</p></li>
+<li><p><strong>max_clusters</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of clusters to consider for optional exposure-based
+clustering. Values <code class="docutils literal notranslate"><span class="pre">&lt;=</span> <span class="pre">1</span></code> disable clustering. Default is 1.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Container with signature profiles, exposures, optional grouping
+information, and model parameters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult">NMFResult</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">matrix</span></code> is empty, contains non-numeric values, or contains
+    negative entries.</p></li>
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">n_signatures</span></code> is not a positive integer.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.save_nmf_result">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">save_nmf_result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.nmf.nmf.NMFResult"><span class="pre">NMFResult</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/nmf.html#save_nmf_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.save_nmf_result" title="Link to this definition"></a></dt>
+<dd><p>Save an <a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">NMFResult</span></code></a> to a directory on disk.</p>
+<p>This function writes the main components of the NMF decomposition to
+tabular and JSON files in the specified output directory.</p>
+<p>The following files are created:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">signatures.tsv</span></code>:</dt><dd><p>Signature profiles (features × K).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">exposures.tsv</span></code>:</dt><dd><p>Sample exposures (samples × K).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">metadata.json</span></code>:</dt><dd><p>JSON file containing <code class="docutils literal notranslate"><span class="pre">model_params</span></code> together with basic shape
+information and a <code class="docutils literal notranslate"><span class="pre">format_version</span></code> field.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>result</strong> (<a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><em>NMFResult</em></a>) – Result object containing signatures, exposures, groups, and model
+parameters to be saved.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – Output directory where result files will be written.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.load_nmf_result">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">load_nmf_result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.nmf.nmf.NMFResult"><span class="pre">NMFResult</span></a></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/nmf.html#load_nmf_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.load_nmf_result" title="Link to this definition"></a></dt>
+<dd><p>Load an <a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">NMFResult</span></code></a> previously saved with <a class="reference internal" href="#str_mut_signatures.save_nmf_result" title="str_mut_signatures.save_nmf_result"><code class="xref py py-func docutils literal notranslate"><span class="pre">save_nmf_result()</span></code></a>.</p>
+<p>This function reads the files created by <code class="docutils literal notranslate"><span class="pre">save_nmf_result</span></code> from the given
+directory and reconstructs the corresponding <a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">NMFResult</span></code></a> object.</p>
+<p>The following files are expected in <code class="docutils literal notranslate"><span class="pre">outdir</span></code>:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">signatures.tsv</span></code>:</dt><dd><p>Signature profiles (features × K).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">exposures.tsv</span></code>:</dt><dd><p>Sample exposures (samples × K).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">metadata.json</span></code>:</dt><dd><p>JSON file containing model parameters and basic shape information.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>outdir</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – Directory containing the saved NMF result files.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Reconstructed NMF result with signatures, exposures, groups (if present),
+and model parameters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult">NMFResult</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.project_onto_signatures">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">project_onto_signatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">signatures</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'nnls'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/nmf.html#project_onto_signatures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.project_onto_signatures" title="Link to this definition"></a></dt>
+<dd><p>Project new samples onto existing signatures to obtain exposures.</p>
+<p>This function computes exposure weights for each new sample given a fixed
+set of signature profiles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>new_matrix</strong> (<em>pandas.DataFrame</em>) – <p>Matrix of new samples.</p>
+<ul>
+<li><p>rows    : samples</p></li>
+<li><p>columns : features (must overlap <code class="docutils literal notranslate"><span class="pre">signatures.index</span></code>)</p></li>
+</ul>
+</p></li>
+<li><p><strong>signatures</strong> (<em>pandas.DataFrame</em>) – <p>Signature profile matrix.</p>
+<ul>
+<li><p>index   : features (same feature space as <code class="docutils literal notranslate"><span class="pre">new_matrix.columns</span></code>)</p></li>
+<li><p>columns : signatures (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;Signature_1&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;Signature_2&quot;</span></code>, …)</p></li>
+</ul>
+</p></li>
+<li><p><strong>method</strong> (<em>{&quot;nnls&quot;}</em><em>, </em><em>optional</em>) – Projection method. Currently only non-negative least squares
+(<code class="docutils literal notranslate"><span class="pre">&quot;nnls&quot;</span></code>) is implemented.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Exposure matrix for the new samples.</p>
+<ul class="simple">
+<li><p>rows    : samples (same as <code class="docutils literal notranslate"><span class="pre">new_matrix.index</span></code>)</p></li>
+<li><p>columns : signatures (same as <code class="docutils literal notranslate"><span class="pre">signatures.columns</span></code>)</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>For <code class="docutils literal notranslate"><span class="pre">method=&quot;nnls&quot;</span></code>, for each sample vector <code class="docutils literal notranslate"><span class="pre">x</span></code> (1 × F) the exposures
+<code class="docutils literal notranslate"><span class="pre">e</span></code> are obtained by solving:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">minimize</span> <span class="o">||</span> <span class="n">x</span> <span class="o">-</span> <span class="n">A</span> <span class="n">e</span> <span class="o">||</span><span class="n">_2</span>   <span class="n">subject</span> <span class="n">to</span> <span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">A</span></code> is the feature-by-signature matrix (F × K).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">method</span></code> is not supported or if there is no overlap between
+    <code class="docutils literal notranslate"><span class="pre">new_matrix.columns</span></code> and <code class="docutils literal notranslate"><span class="pre">signatures.index</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.compute_pca">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">compute_pca</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/plot.html#compute_pca"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.compute_pca" title="Link to this definition"></a></dt>
+<dd><p>Compute PCA on a samples x features matrix (e.g. exposures).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>matrix</strong> (<em>pandas.DataFrame</em>) – Numeric matrix:
+- rows   : samples
+- columns: features or signatures.</p></li>
+<li><p><strong>n_components</strong> (<em>int</em><em>, </em><em>default 2</em>) – Number of principal components to compute.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>coords</strong> (<em>pandas.DataFrame</em>) – PCA coordinates with:
+- index  : same as matrix.index
+- columns: PC1, PC2, …, PC{n_components}</p></li>
+<li><p><strong>explained_variance_ratio_</strong> (<em>np.ndarray</em>) – 1D array of length n_components with the fraction of variance
+explained by each component.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.plot_exposures">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">plot_exposures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.nmf.nmf.NMFResult"><span class="pre">NMFResult</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">stacked</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_samples_per_fig</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'both'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'absolute'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'proportion'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'both'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/plot.html#plot_exposures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.plot_exposures" title="Link to this definition"></a></dt>
+<dd><p>Plot sample exposures from an <a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">NMFResult</span></code></a>.</p>
+<p>This function generates exposure visualizations while enforcing:</p>
+<ul class="simple">
+<li><p>Sample order is identical across all panels/plots (absolute, proportion,
+and per-signature views use the same ordering rule).</p></li>
+<li><p>Signature stacking/order is consistent (uses <code class="docutils literal notranslate"><span class="pre">result.exposures.columns</span></code>).</p></li>
+</ul>
+<p>Expected inputs:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">result.exposures</span></code>: <code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with samples as index and
+signatures as columns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">result.groups</span></code>: <code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with a <code class="docutils literal notranslate"><span class="pre">&quot;group&quot;</span></code> column
+(optional), used to determine sample ordering and/or grouping.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>result</strong> (<a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><em>NMFResult</em></a>) – Output of <a class="reference internal" href="#str_mut_signatures.run_nmf" title="str_mut_signatures.run_nmf"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_nmf()</span></code></a> containing exposures and optional grouping
+information.</p></li>
+<li><p><strong>stacked</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, plot stacked bar charts. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, plot grouped (side-by-side)
+bars where applicable. Default is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>] or </em><em>None</em><em>, </em><em>optional</em>) – Figure size passed to matplotlib. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, a default size is chosen
+based on the number of samples and signatures.</p></li>
+<li><p><strong>max_samples_per_fig</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Maximum number of samples to show per figure. If provided, samples are
+split across multiple figures. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, all samples are plotted in a
+single figure (may be large).</p></li>
+<li><p><strong>plot</strong> (<em>{&quot;both&quot;</em><em>, </em><em>&quot;absolute&quot;</em><em>, </em><em>&quot;proportion&quot;}</em><em>, </em><em>optional</em>) – <p>Which exposure views to generate:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;absolute&quot;</span></code>: plot raw exposure values.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;proportion&quot;</span></code>: plot exposures normalized to sum to 1 per sample.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;both&quot;</span></code>: generate both absolute and proportional plots.</p></li>
+</ul>
+<p>Default is <code class="docutils literal notranslate"><span class="pre">&quot;both&quot;</span></code>.</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary mapping plot type to a list of created figures. Keys depend on
+<code class="docutils literal notranslate"><span class="pre">plot</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;absolute&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;proportion&quot;</span></code>).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, list[matplotlib.figure.Figure]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.plot_pca_samples">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">plot_pca_samples</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.nmf.nmf.NMFResult"><span class="pre">NMFResult</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/plot.html#plot_pca_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.plot_pca_samples" title="Link to this definition"></a></dt>
+<dd><p>Run PCA on an NMF result (typically exposures) and plot PC1 vs PC2.</p>
+<p>This is the main entry point for PCA visualization:</p>
+<ul class="simple">
+<li><p>Extract a samples × features matrix from <code class="docutils literal notranslate"><span class="pre">result</span></code> (by default
+<code class="docutils literal notranslate"><span class="pre">result.exposures</span></code>).</p></li>
+<li><p>Compute PCA coordinates.</p></li>
+<li><p>Color samples by <code class="docutils literal notranslate"><span class="pre">result.groups</span></code>.</p></li>
+<li><p>Plot the first two principal components.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>result</strong> (<a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><em>NMFResult</em></a>) – Output of <a class="reference internal" href="#str_mut_signatures.run_nmf" title="str_mut_signatures.run_nmf"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_nmf()</span></code></a>. Must provide <code class="docutils literal notranslate"><span class="pre">.exposures</span></code> as a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> unless <code class="docutils literal notranslate"><span class="pre">matrix</span></code> is explicitly provided.</p></li>
+<li><p><strong>matrix</strong> (<em>pandas.DataFrame</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Optional matrix to use instead of <code class="docutils literal notranslate"><span class="pre">result.exposures</span></code>.
+Must be samples × features. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, uses <code class="docutils literal notranslate"><span class="pre">result.exposures</span></code>.</p></li>
+<li><p><strong>n_components</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of principal components to compute. Must be &gt;= 2.
+Default is 2.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Existing axes to plot on. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, a new figure and axes are created.</p></li>
+<li><p><strong>title</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Plot title. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, a default title is generated.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>optional</em>) – Point transparency. Default is 0.8.</p></li>
+<li><p><strong>cmap</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – <p>Matplotlib colormap name used for coloring samples.</p>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">group</span></code> is detected as categorical, the default is <code class="docutils literal notranslate"><span class="pre">&quot;tab20&quot;</span></code>.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">group</span></code> is detected as continuous, the default is <code class="docutils literal notranslate"><span class="pre">&quot;viridis&quot;</span></code>.</p></li>
+</ul>
+<p>If provided explicitly, this colormap is used in both cases.</p>
+</p></li>
+<li><p><strong>s</strong> (<em>float</em><em>, </em><em>optional</em>) – Point size. Default is 30.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>coords</strong> (<em>pandas.DataFrame</em>) – PCA coordinates for each sample (<code class="docutils literal notranslate"><span class="pre">PC1</span></code>, <code class="docutils literal notranslate"><span class="pre">PC2</span></code>, …), indexed by sample.</p></li>
+<li><p><strong>explained_variance_ratio_</strong> (<em>numpy.ndarray</em>) – Fraction of variance explained by each principal component.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – Axes containing the PCA scatter plot.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">n_components</span> <span class="pre">&lt;</span> <span class="pre">2</span></code> or if the chosen matrix is empty or non-numeric.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="str_mut_signatures.plot_signatures">
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">plot_signatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.nmf.nmf.NMFResult"><span class="pre">NMFResult</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">signatures</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sharey</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Figure</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/nmf/plot.html#plot_signatures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.plot_signatures" title="Link to this definition"></a></dt>
+<dd><p>Plot per-signature bar plots of feature loadings.</p>
+<p>This function visualizes the strongest features for each selected
+signature as bar plots, using the signature profiles stored in
+<code class="docutils literal notranslate"><span class="pre">result.signatures</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>result</strong> (<a class="reference internal" href="#str_mut_signatures.NMFResult" title="str_mut_signatures.NMFResult"><em>NMFResult</em></a>) – Output of <a class="reference internal" href="#str_mut_signatures.run_nmf" title="str_mut_signatures.run_nmf"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_nmf()</span></code></a> containing the signature matrix.</p></li>
+<li><p><strong>top_n</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of top features (by absolute loading) to display per signature.
+Default is 20.</p></li>
+<li><p><strong>signatures</strong> (<em>list</em><em>[</em><em>int</em><em>] or </em><em>list</em><em>[</em><em>str</em><em>] or </em><em>None</em><em>, </em><em>optional</em>) – <p>Which signatures to plot.</p>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">None</span></code>, all signatures are plotted.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">list[int]</span></code>, values are interpreted as 1-based indices
+(<code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">..</span> <span class="pre">K</span></code>).</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">list[str]</span></code>, values must match column names in
+<code class="docutils literal notranslate"><span class="pre">result.signatures</span></code>.</p></li>
+</ul>
+</p></li>
+<li><p><strong>figsize</strong> (<em>tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>] or </em><em>None</em><em>, </em><em>optional</em>) – Figure size passed to matplotlib. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, a default size is chosen
+based on the number of signatures.</p></li>
+<li><p><strong>sharey</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, all subplots share the same y-axis. Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The created matplotlib figure containing the signature bar plots.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>matplotlib.figure.Figure</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="str_mut_signatures documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cli.html" class="btn btn-neutral float-right" title="Command-line interface" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Olesia Kondrateva.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

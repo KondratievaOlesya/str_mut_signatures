@@ -1,0 +1,813 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>str_mut_signatures documentation &mdash; str_mut_signatures 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=51b770b3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Main functionality" href="main.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            str_mut_signatures
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Main functionality</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command-line interface</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">str_mut_signatures</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">str_mut_signatures documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="str-mut-signatures-documentation">
+<h1>str_mut_signatures documentation<a class="headerlink" href="#str-mut-signatures-documentation" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Main functionality</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command-line interface</a></li>
+</ul>
+</div>
+<section id="str-mut-signatures">
+<h2>str_mut_signatures<a class="headerlink" href="#str-mut-signatures" title="Link to this heading"></a></h2>
+<a class="reference external image-reference" href="https://acg-team.github.io/str_mut_signatures/"><img alt="https://img.shields.io/badge/docs-GitHub%20Pages-blue" src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" />
+</a>
+<a class="reference external image-reference" href="https://github.com/acg-team/str_mut_signatures/actions/workflows/ci.yml"><img alt="Tests" src="https://github.com/acg-team/str_mut_signatures/actions/workflows/ci.yml/badge.svg" />
+</a>
+<a class="reference external image-reference" href="https://codecov.io/gh/acg-team/str_mut_signatures"><img alt="Coverage" src="https://codecov.io/gh/acg-team/str_mut_signatures/branch/main/graph/badge.svg" />
+</a>
+<p>STR Mutation Signature Analysis.</p>
+<p>Python package for analysis of Short Tandem Repeat (STR) mutation signatures from VCF files.
+It extracts somatic STR mutation events from paired tumor–normal VCFs, builds
+count matrices, filters them, performs NMF-based signature decomposition, and
+projects new samples onto learned STR mutation signatures.</p>
+</section>
+</section>
+<section id="contents">
+<h1>Contents<a class="headerlink" href="#contents" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="#installation">Installation</a></p></li>
+<li><p><a class="reference internal" href="#quick-start">Quick start</a></p></li>
+<li><p><a class="reference internal" href="#input-format">Input format</a></p></li>
+<li><p><a class="reference internal" href="#annotating-standard-vcfs">Annotating standard VCFs</a></p></li>
+<li><p><a class="reference internal" href="#matrix-construction">Matrix construction</a></p></li>
+<li><p><a class="reference internal" href="#filtering-mutation-matrices">Filtering mutation matrices</a></p></li>
+<li><p><a class="reference internal" href="#nmf-signatures-and-projection">NMF signatures and projection</a></p></li>
+<li><p><a class="reference internal" href="#visualization">Visualization</a></p></li>
+<li><p><a class="reference internal" href="#command-line-interface">Command line interface</a></p></li>
+<li><p><a class="reference internal" href="#python-api">Python API</a></p></li>
+<li><p><a class="reference internal" href="#output">Output</a></p></li>
+<li><p><a class="reference internal" href="#contributing">Contributing</a></p></li>
+<li><p><a class="reference internal" href="#license">License</a></p></li>
+</ul>
+</section>
+<section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p>The package is available through <a class="reference external" href="https://pypi.org/project/str_mut_signatures/">PyPI</a>. Install with:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>str_mut_signatures
+</pre></div>
+</div>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/acg-team/str_mut_signatures
+<span class="nb">cd</span><span class="w"> </span>str_mut_signatures
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements_dev.txt
+</pre></div>
+</div>
+</section>
+<section id="quick-start">
+<h1>Quick start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h1>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">parse_vcf_files</span><span class="p">,</span>
+    <span class="n">build_mutation_matrix</span><span class="p">,</span>
+    <span class="n">filter_mutation_matrix</span><span class="p">,</span>
+    <span class="n">run_nmf</span><span class="p">,</span>
+    <span class="n">save_nmf_result</span><span class="p">,</span>
+    <span class="n">load_nmf_result</span><span class="p">,</span>
+    <span class="n">project_onto_signatures</span><span class="p">,</span>
+    <span class="n">plot_exposures</span><span class="p">,</span>
+    <span class="n">plot_pca_samples</span><span class="p">,</span>
+    <span class="n">plot_signatures</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># 1) Parse annotated paired tumor–normal VCF files into a long table</span>
+<span class="n">mutations</span> <span class="o">=</span> <span class="n">parse_vcf_files</span><span class="p">(</span><span class="s2">&quot;vcf_directory/&quot;</span><span class="p">)</span>
+
+<span class="c1"># 2) Build a mutation count matrix</span>
+<span class="c1"># ru_length:</span>
+<span class="c1">#   include repeat-unit length (LEN{len(motif)})</span>
+<span class="c1"># ru:</span>
+<span class="c1">#   None     -&gt; ignore motif</span>
+<span class="c1">#   &quot;ru&quot;     -&gt; use full repeat unit sequence (e.g. AT, AAT)</span>
+<span class="c1">#   &quot;class&quot;  -&gt; AT-only, GC-only or mixed classification</span>
+<span class="c1"># ref_length:</span>
+<span class="c1">#   include reference repeat length as a feature component</span>
+<span class="c1"># change:</span>
+<span class="c1">#   include tumor–normal repeat-length change</span>
+<span class="n">matrix</span> <span class="o">=</span> <span class="n">build_mutation_matrix</span><span class="p">(</span>
+    <span class="n">mutations</span><span class="p">,</span>
+    <span class="n">ru_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ru</span><span class="o">=</span><span class="s2">&quot;class&quot;</span><span class="p">,</span>
+    <span class="n">ref_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">change</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># 3) Filter the matrix (e.g. manual thresholds)</span>
+<span class="n">matrix_filt</span><span class="p">,</span> <span class="n">summary</span> <span class="o">=</span> <span class="n">filter_mutation_matrix</span><span class="p">(</span>
+    <span class="n">matrix</span><span class="p">,</span>
+    <span class="n">feature_method</span><span class="o">=</span><span class="s2">&quot;manual&quot;</span><span class="p">,</span>
+    <span class="n">min_feature_total</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">min_samples_with_feature</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">min_sample_total</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># 4) Run NMF</span>
+<span class="c1"># Optional clustering is performed here and stored in nmf_res.groups</span>
+<span class="n">nmf_res</span> <span class="o">=</span> <span class="n">run_nmf</span><span class="p">(</span>
+    <span class="n">matrix_filt</span><span class="p">,</span>
+    <span class="n">n_signatures</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+    <span class="n">max_clusters</span><span class="o">=</span><span class="mi">4</span> <span class="c1"># &lt;= 1 disables clustering</span>
+<span class="p">)</span>
+
+<span class="c1"># Access signatures and exposures</span>
+<span class="n">signatures</span> <span class="o">=</span> <span class="n">nmf_res</span><span class="o">.</span><span class="n">signatures</span>   <span class="c1"># features x K</span>
+<span class="n">exposures</span>  <span class="o">=</span> <span class="n">nmf_res</span><span class="o">.</span><span class="n">exposures</span>    <span class="c1"># samples x K</span>
+<span class="n">groups</span>     <span class="o">=</span> <span class="n">nmf_res</span><span class="o">.</span><span class="n">groups</span>       <span class="c1"># samples x 1 (&quot;group&quot;)</span>
+
+<span class="c1"># 4a) Plot mutation signatures</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plot_signatures</span><span class="p">(</span><span class="n">nmf_res</span><span class="p">,</span> <span class="n">top_n</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+
+<span class="c1"># 4b) Visualize sample exposures to signatures (ordered by group, then total exposure)</span>
+<span class="n">figs</span> <span class="o">=</span> <span class="n">plot_exposures</span><span class="p">(</span>
+    <span class="n">nmf_res</span><span class="p">,</span>
+    <span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">max_samples_per_fig</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>  <span class="c1"># paginate if many samples</span>
+<span class="p">)</span>
+
+<span class="c1"># figs[&quot;absolute&quot;]   -&gt; list of figures with absolute exposures</span>
+<span class="c1"># figs[&quot;proportion&quot;] -&gt; list of figures with exposures normalized per sample</span>
+
+<span class="c1"># 4c) Visualize samples in PCA space based on exposures (colored by stored groups)</span>
+<span class="n">coords</span><span class="p">,</span> <span class="n">var_ratio</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_pca_samples</span><span class="p">(</span><span class="n">nmf_res</span><span class="p">)</span>
+
+<span class="c1"># coords   -&gt; DataFrame with PC1, PC2, ...</span>
+<span class="c1"># var_ratio-&gt; variance explained by PC1 and PC2</span>
+<span class="c1"># ax       -&gt; matplotlib Axes with the scatter plot</span>
+
+<span class="c1"># 5) Save NMF result for reuse</span>
+<span class="n">save_nmf_result</span><span class="p">(</span><span class="n">nmf_res</span><span class="p">,</span> <span class="s2">&quot;nmf_results&quot;</span><span class="p">)</span>
+
+<span class="c1"># 6) Load NMF result and project new samples</span>
+<span class="n">nmf_loaded</span> <span class="o">=</span> <span class="n">load_nmf_result</span><span class="p">(</span><span class="s2">&quot;nmf_results&quot;</span><span class="p">)</span>
+<span class="n">new_exposures</span> <span class="o">=</span> <span class="n">project_onto_signatures</span><span class="p">(</span>
+    <span class="n">new_matrix</span><span class="o">=</span><span class="n">new_counts_df</span><span class="p">,</span>
+    <span class="n">signatures</span><span class="o">=</span><span class="n">nmf_loaded</span><span class="o">.</span><span class="n">signatures</span><span class="p">,</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nnls&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<ol class="arabic simple">
+<li><p><strong>Extract</strong> somatic STR mutation counts from paired tumor–normal VCFs:</p></li>
+</ol>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>extract<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--vcf-dir<span class="w"> </span>data/vcfs/<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-matrix<span class="w"> </span>counts_raw.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--ru-length<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--ru<span class="w"> </span>class<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--ref-length<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--change
+</pre></div>
+</div>
+<p>This produces a count matrix (TSV) with:</p>
+<ul class="simple">
+<li><p>rows = samples</p></li>
+<li><p>columns = STR mutation features such as:</p></li>
+</ul>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>LEN{motif_length}_{motif class}_{ref_length}_{change}
+</pre></div>
+</div>
+<p>For example: <code class="docutils literal notranslate"><span class="pre">LEN1_AT_only_10_+1</span></code> means:</p>
+<ul class="simple">
+<li><p>motif length = 1 bp</p></li>
+<li><p>motif base class = AT-only</p></li>
+<li><p>reference repeat length = 10 copies</p></li>
+<li><p>tumor has +1 copy relative to normal.</p></li>
+</ul>
+<ol class="arabic simple" start="2">
+<li><p><strong>Filter</strong> the matrix to remove extremely rare features/samples:</p></li>
+</ol>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>filter<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>counts_raw.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-matrix<span class="w"> </span>counts_filtered.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--feature-method<span class="w"> </span>elbow
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p><strong>Run NMF</strong> to learn STR mutation signatures:</p></li>
+</ol>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>nmf<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>counts_filtered.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--outdir<span class="w"> </span>nmf_results<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--n-signatures<span class="w"> </span><span class="m">5</span>
+</pre></div>
+</div>
+<p>This writes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nmf_results/signatures.tsv</span></code> – STR mutation signatures (features x K)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nmf_results/exposures.tsv</span></code> – sample exposures (samples x K)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nmf_results/metadata.json</span></code> – parameters and metadata.</p></li>
+</ul>
+<ol class="arabic simple" start="4">
+<li><p><strong>Project new samples</strong> onto existing signatures:</p></li>
+</ol>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>project<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>new_counts.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--nmf-dir<span class="w"> </span>nmf_results<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-exposures<span class="w"> </span>new_exposures.tsv
+</pre></div>
+</div>
+</section>
+<section id="input-format">
+<h1>Input format<a class="headerlink" href="#input-format" title="Link to this heading"></a></h1>
+<p>To be processed by <code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code>, VCF files must:</p>
+<ol class="arabic simple">
+<li><p>Contain <strong>paired samples</strong> (normal and tumor) per record.</p></li>
+<li><p>Be annotated with STR-specific fields that describe the repeat motif and
+<strong>allele-level repeat copy numbers</strong>.</p></li>
+</ol>
+<p><code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code> currently supports STR VCFs produced by:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/gymreklab/GangSTR">GangSTR</a></p></li>
+<li><p><a class="reference external" href="https://github.com/acg-team/ConSTRain">conSTRain</a></p></li>
+<li><p>VCFs annotated with the <a class="reference external" href="https://github.com/acg-team/strvcf_annotator/">strvcf_annotator</a> tool</p></li>
+</ul>
+<p>as long as they satisfy the requirements below.</p>
+<ul>
+<li><p>Each VCF record must contain at least two samples:</p>
+<ul class="simple">
+<li><p><strong>Sample 1 (first column after FORMAT): normal</strong></p></li>
+<li><p><strong>Sample 2 (second column after FORMAT): tumor</strong></p></li>
+</ul>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code> assumes this order and computes <strong>somatic</strong>
+changes as tumor vs normal. Only loci with differences between tumor and normal
+are used (somatic STR mutations).</p>
+</li>
+<li><p>Required annotations:</p>
+<p><strong>INFO fields</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RU</span></code>: Repeat unit / motif (e.g. <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">AT</span></code>, <code class="docutils literal notranslate"><span class="pre">AAT</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">REF</span></code>: Reference repeat count (copy number of the motif in the reference genome).</p></li>
+</ul>
+<p><strong>FORMAT fields (copy number)</strong></p>
+<p>One of the following per sample:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">REPCN</span></code>: Per-allele repeat copy number (used by GangSTR and <code class="docutils literal notranslate"><span class="pre">strvcf_annotator</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">REPLEN</span></code>: Per-allele repeat length in repeat units (used by conSTRain).</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code> automatically detects which field is present and uses it
+as the source of allele copy numbers.</p>
+</li>
+</ul>
+<p><strong>GangSTR / strvcf_annotator-style</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>##INFO=&lt;ID=RU,Number=1,Type=String,Description=&quot;Repeat unit&quot;&gt;
+##INFO=&lt;ID=REF,Number=1,Type=Integer,Description=&quot;Reference repeat count&quot;&gt;
+##FORMAT=&lt;ID=REPCN,Number=R,Type=Integer,Description=&quot;Per-allele repeat copy number&quot;&gt;
+#CHROM POS  ID REF ALT QUAL FILTER INFO        FORMAT        NORMAL     TUMOR
+chr1   100 .  A   AT  .    .     RU=A;REF=10  GT:REPCN      0/0:10,10  0/1:10,11
+</pre></div>
+</div>
+<p><strong>conSTRain-style</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>##INFO=&lt;ID=RU,Number=1,Type=String,Description=&quot;Repeat unit&quot;&gt;
+##INFO=&lt;ID=REF,Number=1,Type=Integer,Description=&quot;Reference repeat count&quot;&gt;
+##FORMAT=&lt;ID=REPLEN,Number=R,Type=Integer,Description=&quot;Per-allele repeat length in repeat units&quot;&gt;
+#CHROM POS  ID REF ALT QUAL FILTER INFO        FORMAT        NORMAL       TUMOR
+chr1   100 .  A   AT  .    .     RU=A;REF=10  GT:REPLEN     0/0:10,10    0/1:10,11
+</pre></div>
+</div>
+<p>From such records, <code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code>:</p>
+<ul class="simple">
+<li><p>Extracts <strong>allele-level repeat copy numbers</strong> from <code class="docutils literal notranslate"><span class="pre">REPCN</span></code> or <code class="docutils literal notranslate"><span class="pre">REPLEN</span></code>.</p></li>
+<li><p>Compares NORMAL vs TUMOR allele counts at each locus.</p></li>
+<li><p>Identifies loci where tumor repeat copy number differs from normal.</p></li>
+<li><p>Encodes the net repeat-length <strong>change</strong> as tumor–normal (e.g. <code class="docutils literal notranslate"><span class="pre">+1</span></code>).</p></li>
+<li><p>Uses only these somatic STR events for downstream count matrices and signature extraction.</p></li>
+</ul>
+</section>
+<section id="annotating-standard-vcfs">
+<h1>Annotating standard VCFs<a class="headerlink" href="#annotating-standard-vcfs" title="Link to this heading"></a></h1>
+<p>If your VCFs lack <code class="docutils literal notranslate"><span class="pre">RU</span></code>, <code class="docutils literal notranslate"><span class="pre">REF</span></code>, or copy-number fields, you can annotate them using
+the tool <code class="docutils literal notranslate"><span class="pre">strvcf_annotator</span></code>:</p>
+<ul class="simple">
+<li><p>Takes standard VCF + STR reference.</p></li>
+<li><p>Produces STR-annotated VCFs compatible with <code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code>.</p></li>
+</ul>
+<p>For details see: <a class="reference external" href="https://github.com/acg-team/strvcf_annotator/">strvcf_annotator</a>.</p>
+</section>
+<section id="matrix-construction">
+<h1>Matrix construction<a class="headerlink" href="#matrix-construction" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">build_mutation_matrix</span></code> defines feature keys using independent options.</p>
+<p>Each feature key can include:</p>
+<ul class="simple">
+<li><p>repeat-unit length (<code class="docutils literal notranslate"><span class="pre">LEN{len(motif)}</span></code>) via <code class="docutils literal notranslate"><span class="pre">ru_length</span></code></p></li>
+<li><p>repeat-unit content via <code class="docutils literal notranslate"><span class="pre">ru</span></code> (optional)</p></li>
+<li><p>reference repeat count via <code class="docutils literal notranslate"><span class="pre">ref_length</span></code></p></li>
+<li><p>tumor–normal delta via <code class="docutils literal notranslate"><span class="pre">change</span></code></p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ru</span></code> omitted (<code class="docutils literal notranslate"><span class="pre">ru=None</span></code>):
+no repeat-unit content is included.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ru=&quot;class&quot;</span></code>:
+base composition class is used:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">AT_only</span></code>: motif contains only A/T</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GC_only</span></code>: motif contains only G/C</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mixed</span></code>: mixed A/T and G/C</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ru=&quot;ru&quot;</span></code>:
+full repeat-unit sequence is used (e.g. <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">AT</span></code>, <code class="docutils literal notranslate"><span class="pre">AAT</span></code>).</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Motif length + base class + ref length + somatic change:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">build_mutation_matrix</span><span class="p">(</span>
+    <span class="n">mutations</span><span class="p">,</span>
+    <span class="n">ru_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ru</span><span class="o">=</span><span class="s2">&quot;class&quot;</span><span class="p">,</span>
+    <span class="n">ref_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">change</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># e.g. LEN2_AT_only_15_+1</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Full motif + ref length + somatic change:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">build_mutation_matrix</span><span class="p">(</span>
+    <span class="n">mutations</span><span class="p">,</span>
+    <span class="n">ru_length</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ru</span><span class="o">=</span><span class="s2">&quot;ru&quot;</span><span class="p">,</span>
+    <span class="n">ref_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">change</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># e.g. AT_15_+1</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Length only:</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">build_mutation_matrix</span><span class="p">(</span>
+    <span class="n">mutations</span><span class="p">,</span>
+    <span class="n">ru_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ru</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ref_length</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">change</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># e.g. LEN1_+1</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Presence/absence-style summaries (no delta term):</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">m</span> <span class="o">=</span> <span class="n">build_mutation_matrix</span><span class="p">(</span>
+    <span class="n">mutations</span><span class="p">,</span>
+    <span class="n">ru_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ru</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ref_length</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">change</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># e.g. LEN1_10</span>
+</pre></div>
+</div>
+</section>
+<section id="filtering-mutation-matrices">
+<h1>Filtering mutation matrices<a class="headerlink" href="#filtering-mutation-matrices" title="Link to this heading"></a></h1>
+<p>Large STR feature spaces can be sparse. <code class="docutils literal notranslate"><span class="pre">filter_mutation_matrix</span></code> provides
+several strategies to reduce noise before NMF.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">filter_mutation_matrix</span>
+
+<span class="n">filtered</span><span class="p">,</span> <span class="n">summary</span> <span class="o">=</span> <span class="n">filter_mutation_matrix</span><span class="p">(</span>
+    <span class="n">matrix</span><span class="p">,</span>
+    <span class="n">feature_method</span><span class="o">=</span><span class="s2">&quot;manual&quot;</span><span class="p">,</span>
+    <span class="n">min_feature_total</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">min_samples_with_feature</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">min_sample_total</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">feature_percentile</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>  <span class="c1"># used for percentile method</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Methods:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_method=&quot;manual&quot;</span></code></p>
+<ul>
+<li><p>Keep features with:</p>
+<ul>
+<li><p>total count across samples &gt;= <code class="docutils literal notranslate"><span class="pre">min_feature_total</span></code></p></li>
+<li><p>present (non-zero) in at least <code class="docutils literal notranslate"><span class="pre">min_samples_with_feature</span></code> samples.</p></li>
+</ul>
+</li>
+<li><p>Drop samples with total counts &lt; <code class="docutils literal notranslate"><span class="pre">min_sample_total</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_method=&quot;elbow&quot;</span></code></p>
+<ul>
+<li><p>Compute feature totals.</p></li>
+<li><p>Use an “elbow” heuristic to choose a count threshold.</p></li>
+<li><p>Keep features above that threshold.</p></li>
+<li><p>Apply <code class="docutils literal notranslate"><span class="pre">min_samples_with_feature</span></code> and <code class="docutils literal notranslate"><span class="pre">min_sample_total</span></code> as in manual mode.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feature_method=&quot;percentile&quot;</span></code></p>
+<ul>
+<li><p>Compute feature totals.</p></li>
+<li><p>Keep features above a chosen percentile of totals
+(e.g. <code class="docutils literal notranslate"><span class="pre">feature_percentile=0.9</span></code> keeps the top 10% by total count).</p></li>
+<li><p>Apply <code class="docutils literal notranslate"><span class="pre">min_samples_with_feature</span></code> and <code class="docutils literal notranslate"><span class="pre">min_sample_total</span></code> as in manual mode.</p></li>
+</ul>
+</li>
+</ul>
+<p>The function returns:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">filtered</span></code> – filtered count matrix.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">summary</span></code> – small dataclass with filtering statistics (e.g. numbers of features/samples before/after, thresholds used).</p></li>
+</ul>
+</section>
+<section id="nmf-signatures-and-projection">
+<h1>NMF signatures and projection<a class="headerlink" href="#nmf-signatures-and-projection" title="Link to this heading"></a></h1>
+<p>NMF is used to decompose the filtered matrix into:</p>
+<ul class="simple">
+<li><p><strong>Signatures</strong>: STR mutation patterns (features x K)</p></li>
+<li><p><strong>Exposures</strong>: how much each sample uses each signature (samples x K)</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_nmf</span>
+
+<span class="n">nmf_res</span> <span class="o">=</span> <span class="n">run_nmf</span><span class="p">(</span>
+    <span class="n">matrix</span><span class="p">,</span>
+    <span class="n">n_signatures</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">init</span><span class="o">=</span><span class="s2">&quot;nndsvd&quot;</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">alpha_W</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">alpha_H</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">l1_ratio</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">signatures</span> <span class="o">=</span> <span class="n">nmf_res</span><span class="o">.</span><span class="n">signatures</span>  <span class="c1"># DataFrame: features x K</span>
+<span class="n">exposures</span>  <span class="o">=</span> <span class="n">nmf_res</span><span class="o">.</span><span class="n">exposures</span>   <span class="c1"># DataFrame: samples x K</span>
+<span class="n">params</span>     <span class="o">=</span> <span class="n">nmf_res</span><span class="o">.</span><span class="n">model_params</span>
+</pre></div>
+</div>
+<p>You can save and reload NMF results in a stable format (TSV + JSON):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_nmf_result</span><span class="p">,</span> <span class="n">load_nmf_result</span>
+
+<span class="n">save_nmf_result</span><span class="p">(</span><span class="n">nmf_res</span><span class="p">,</span> <span class="s2">&quot;nmf_results&quot;</span><span class="p">)</span>
+
+<span class="n">nmf_loaded</span> <span class="o">=</span> <span class="n">load_nmf_result</span><span class="p">(</span><span class="s2">&quot;nmf_results&quot;</span><span class="p">)</span>
+<span class="c1"># nmf_loaded.signatures, nmf_loaded.exposures, nmf_loaded.model_params</span>
+</pre></div>
+</div>
+<p>Given a previously learned set of signatures, you can compute exposures for
+new samples (e.g. a new cohort or single sample):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">project_onto_signatures</span>
+
+<span class="n">new_exposures</span> <span class="o">=</span> <span class="n">project_onto_signatures</span><span class="p">(</span>
+    <span class="n">new_matrix</span><span class="o">=</span><span class="n">new_counts_df</span><span class="p">,</span>
+    <span class="n">signatures</span><span class="o">=</span><span class="n">nmf_loaded</span><span class="o">.</span><span class="n">signatures</span><span class="p">,</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nnls&quot;</span><span class="p">,</span>  <span class="c1"># non-negative least squares</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Rows in <code class="docutils literal notranslate"><span class="pre">new_exposures</span></code> are new samples, columns are signatures.</p>
+</section>
+<section id="visualization">
+<h1>Visualization<a class="headerlink" href="#visualization" title="Link to this heading"></a></h1>
+<p>After fitting NMF, <code class="docutils literal notranslate"><span class="pre">str_mut_signatures</span></code> provides convenience functions to:</p>
+<ul class="simple">
+<li><p><strong>Visualize signature exposures per sample</strong> (bar plots).</p></li>
+<li><p><strong>Visualize samples in PCA space</strong> (scatter plots of PC1 vs PC2).</p></li>
+</ul>
+<p>These plots are useful for:</p>
+<ul class="simple">
+<li><p>Checking whether signatures separate known biological groups.</p></li>
+<li><p>Detecting outlier samples or batch effects.</p></li>
+<li><p>Inspecting clusters of samples with similar STR mutation patterns.</p></li>
+<li><p>Communicating results in figures for manuscripts or presentations.</p></li>
+</ul>
+<p>Use <code class="docutils literal notranslate"><span class="pre">plot_exposures</span></code> to visualize how much each sample uses each signature.</p>
+<p>Key features:</p>
+<ul class="simple">
+<li><p>Stacked or grouped bars.</p></li>
+<li><p>Optional pagination when there are many samples.</p></li>
+<li><p>Samples are ordered by:
+1. group (ascending)
+2. total exposure within each group (descending)</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_exposures</span>
+
+<span class="c1"># nmf_res is the result of run_nmf(...)</span>
+<span class="n">figs</span> <span class="o">=</span> <span class="n">plot_exposures</span><span class="p">(</span>
+    <span class="n">nmf_res</span><span class="p">,</span>
+    <span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">max_samples_per_fig</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>  <span class="c1"># paginate if many samples</span>
+<span class="p">)</span>
+
+<span class="c1"># figs[&quot;absolute&quot;]   -&gt; list of figures with absolute exposures</span>
+<span class="c1"># figs[&quot;proportion&quot;] -&gt; list of figures with exposures normalized per sample</span>
+</pre></div>
+</div>
+<p>Typical use:</p>
+<ul class="simple">
+<li><p><strong>Absolute exposures</strong>: how much each signature contributes in raw counts.</p></li>
+<li><p><strong>Proportions</strong>: composition of each sample (bars sum to 1), easier for comparing
+relative contributions across samples.</p></li>
+</ul>
+<p>Use <code class="docutils literal notranslate"><span class="pre">plot_signatures</span></code> to visualize STR mutation signatures.</p>
+<p>Each signature is shown as a bar plot of its top contributing features.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_signatures</span>
+
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plot_signatures</span><span class="p">(</span>
+    <span class="n">nmf_res</span><span class="p">,</span>
+    <span class="n">top_n</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>This is useful for:</p>
+<ul class="simple">
+<li><p>Interpreting biological meaning of signatures</p></li>
+<li><p>Comparing mutation patterns across signatures</p></li>
+<li><p>Selecting signatures for downstream analysis</p></li>
+</ul>
+<p>Use <code class="docutils literal notranslate"><span class="pre">plot_pca_samples</span></code> to see how samples cluster in PCA space based on their
+exposures (or any other sample x feature matrix).</p>
+<p>Key features:</p>
+<ul class="simple">
+<li><p>Takes <code class="docutils literal notranslate"><span class="pre">NMFResult</span></code> directly and computes PCA internally.</p></li>
+<li><p>Samples are colored by <code class="docutils literal notranslate"><span class="pre">NMFResult.groups[&quot;group&quot;]</span></code></p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_pca_samples</span>
+<span class="c1"># PCA on exposures, color by &quot;group&quot;</span>
+<span class="n">coords</span><span class="p">,</span> <span class="n">var_ratio</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_pca_samples</span><span class="p">(</span><span class="n">nmf_res</span><span class="p">)</span>
+
+<span class="c1"># coords      -&gt; DataFrame with PC1, PC2, ...</span>
+<span class="c1"># var_ratio   -&gt; fraction of variance explained by each PC</span>
+<span class="c1"># ax          -&gt; matplotlib Axes with the scatter plot</span>
+</pre></div>
+</div>
+<p>Why use PCA plots?</p>
+<ul class="simple">
+<li><p>To see whether samples separate according to known phenotypes</p></li>
+<li><p>To detect subgroups that may correspond to novel STR-driven biology.</p></li>
+<li><p>To identify outliers or potential QC issues (samples far away from the main cloud).</p></li>
+</ul>
+<p>You can replace or augment groups manually:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">nmf_res</span><span class="o">.</span><span class="n">groups</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clinical_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">nmf_res</span><span class="o">.</span><span class="n">exposures</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="s2">&quot;MSI_status&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>All plotting functions will automatically use the updated groups.</p>
+</section>
+<section id="command-line-interface">
+<h1>Command line interface<a class="headerlink" href="#command-line-interface" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-v</span> <span class="pre">/</span> <span class="pre">--verbose</span></code>: Enable verbose logging.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--version</span></code>: Show package version.</p></li>
+</ul>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>extract<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--vcf-dir<span class="w"> </span>PATH<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-matrix<span class="w"> </span>OUTPUT.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--ru-length<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--ru<span class="w"> </span><span class="o">{</span>class,ru<span class="o">}]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--ref-length<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--change<span class="o">]</span>
+</pre></div>
+</div>
+<p>Key options:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--vcf-dir</span></code>: Directory with STR-annotated, paired tumor–normal VCF files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ru-length</span></code>: include motif length (<code class="docutils literal notranslate"><span class="pre">LEN{len(motif)}</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ru</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ru</span></code>: use full motif sequence.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">class</span></code>: use AT-only, GC-only or mixed labeling.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--ref-length</span></code>: Include reference repeat length in feature labels.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--change</span></code>: Encode tumor–normal repeat-length change and restrict to somatic events.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--out-matrix</span></code>: Output TSV with samples as rows and STR mutation features as columns.</p></li>
+</ul>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>filter<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>INPUT.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-matrix<span class="w"> </span>FILTERED.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--feature-method<span class="w"> </span><span class="o">{</span>manual,elbow,percentile<span class="o">}]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--min-feature-total<span class="w"> </span>INT<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--min-samples-with-feature<span class="w"> </span>INT<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--min-sample-total<span class="w"> </span>INT<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--feature-percentile<span class="w"> </span>FLOAT<span class="o">]</span>
+</pre></div>
+</div>
+<p>Examples:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># Simple manual thresholds</span>
+str_mut_signatures<span class="w"> </span>filter<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>counts_raw.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-matrix<span class="w"> </span>counts_filtered.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--feature-method<span class="w"> </span>manual<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--min-feature-total<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--min-samples-with-feature<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--min-sample-total<span class="w"> </span><span class="m">0</span>
+
+<span class="c1"># Percentile-based filtering</span>
+str_mut_signatures<span class="w"> </span>filter<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>counts_raw.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-matrix<span class="w"> </span>counts_filtered.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--feature-method<span class="w"> </span>percentile<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--feature-percentile<span class="w"> </span><span class="m">0</span>.9
+</pre></div>
+</div>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>nmf<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>counts_filtered.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--outdir<span class="w"> </span>nmf_results<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--n-signatures<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--max-iter<span class="w"> </span><span class="m">200</span><span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--random-state<span class="w"> </span><span class="m">0</span><span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--init<span class="w"> </span>nndsvd<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--alpha-W<span class="w"> </span><span class="m">0</span>.0<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--alpha-H<span class="w"> </span><span class="m">0</span>.0<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span>--l1-ratio<span class="w"> </span><span class="m">0</span>.0<span class="o">]</span>
+</pre></div>
+</div>
+<p>Outputs:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nmf_results/signatures.tsv</span></code> – signatures (features x K)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nmf_results/exposures.tsv</span></code> – exposures (samples x K)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nmf_results/metadata.json</span></code> – parameters and metadata</p></li>
+</ul>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>str_mut_signatures<span class="w"> </span>project<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix<span class="w"> </span>NEW_COUNTS.tsv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--nmf-dir<span class="w"> </span>nmf_results<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-exposures<span class="w"> </span>NEW_EXPOSURES.tsv
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--matrix</span></code>: New count matrix (samples x features).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--nmf-dir</span></code>: Directory with an existing NMF result (<code class="docutils literal notranslate"><span class="pre">signatures.tsv</span></code>, <code class="docutils literal notranslate"><span class="pre">metadata.json</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--out-exposures</span></code>: Output TSV with new sample exposures.</p></li>
+</ul>
+</section>
+<section id="python-api">
+<h1>Python API<a class="headerlink" href="#python-api" title="Link to this heading"></a></h1>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">parse_vcf_files</span><span class="p">,</span>
+    <span class="n">build_mutation_matrix</span><span class="p">,</span>
+    <span class="n">filter_mutation_matrix</span><span class="p">,</span>
+    <span class="n">run_nmf</span><span class="p">,</span>
+    <span class="n">save_nmf_result</span><span class="p">,</span>
+    <span class="n">load_nmf_result</span><span class="p">,</span>
+    <span class="n">project_onto_signatures</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">parse_vcf_files(vcf_dir)</span></code> → DataFrame of per-locus STR mutation data.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">build_mutation_matrix(mutations,</span> <span class="pre">...)</span></code> → samples x features count matrix.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filter_mutation_matrix(matrix,</span> <span class="pre">...)</span></code> → filtered matrix + summary.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run_nmf(matrix,</span> <span class="pre">n_signatures,</span> <span class="pre">...)</span></code> → <code class="docutils literal notranslate"><span class="pre">NMFResult(signatures,</span> <span class="pre">exposures,</span> <span class="pre">model_params)</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save_nmf_result(result,</span> <span class="pre">outdir)</span></code> / <code class="docutils literal notranslate"><span class="pre">load_nmf_result(outdir)</span></code> for persistence.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">project_onto_signatures(new_matrix,</span> <span class="pre">signatures,</span> <span class="pre">method=&quot;nnls&quot;)</span></code> → new exposures.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">str_mut_signatures</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">plot_exposures</span><span class="p">,</span>
+    <span class="n">plot_pca_samples</span><span class="p">,</span>
+    <span class="n">plot_signatures</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_signatures(result,</span> <span class="pre">...)</span></code>
+Plot STR mutation signatures (feature loadings).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_exposures(result,</span> <span class="pre">...)</span></code>
+Plot per-sample exposures, ordered and grouped using <code class="docutils literal notranslate"><span class="pre">result.groups</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_pca_samples(result,</span> <span class="pre">...)</span></code>
+PCA of samples, colored by <code class="docutils literal notranslate"><span class="pre">result.groups</span></code>.</p></li>
+</ul>
+</section>
+<section id="output">
+<h1>Output<a class="headerlink" href="#output" title="Link to this heading"></a></h1>
+<p>Typical outputs include:</p>
+<ul class="simple">
+<li><p><strong>Count matrices</strong> (TSV): samples x STR mutation features.</p></li>
+<li><p><strong>Filtered matrices</strong> (TSV): reduced feature space for robust NMF.</p></li>
+<li><p><strong>NMF signatures</strong> and <strong>exposures</strong> (TSV).</p></li>
+<li><p><strong>Metadata</strong> (JSON) describing NMF runs and parameters.</p></li>
+<li><p><strong>Figures</strong> (from visualization helpers) for exploratory analysis and reporting.</p></li>
+</ul>
+<p>These can be used to:</p>
+<ul class="simple">
+<li><p>Characterize somatic STR mutation processes.</p></li>
+<li><p>Compare STR signatures across cohorts.</p></li>
+<li><p>Associate STR signatures with clinical or genomic features.</p></li>
+<li><p>Apply learned STR signatures to new datasets.</p></li>
+<li><p>Visualize and communicate STR mutation signatures in manuscripts and presentations.</p></li>
+</ul>
+</section>
+<section id="contributing">
+<h1>Contributing<a class="headerlink" href="#contributing" title="Link to this heading"></a></h1>
+<p>Contributions are welcome!</p>
+<p>For major changes, please open an issue first
+to discuss what you’d like to change.</p>
+<p>Please ensure:</p>
+<ol class="arabic simple">
+<li><p>All tests pass (including integration tests).</p></li>
+<li><p>Code follows existing style and module structure.</p></li>
+<li><p>New features include unit tests and, where appropriate, integration tests.</p></li>
+<li><p>Documentation and examples are updated.</p></li>
+</ol>
+</section>
+<section id="license">
+<h1>License<a class="headerlink" href="#license" title="Link to this heading"></a></h1>
+<p>MIT License</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="main.html" class="btn btn-neutral float-right" title="Main functionality" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Olesia Kondrateva.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

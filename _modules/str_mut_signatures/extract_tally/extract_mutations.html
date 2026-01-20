@@ -1,0 +1,509 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>str_mut_signatures.extract_tally.extract_mutations &mdash; str_mut_signatures 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            str_mut_signatures
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Main functionality</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cli.html">Command-line interface</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">str_mut_signatures</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">str_mut_signatures.extract_tally.extract_mutations</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for str_mut_signatures.extract_tally.extract_mutations</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">gzip</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">trtools.utils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">GetCanonicalMotif</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.validate</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_vcf</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">normalize_motif</span><span class="p">(</span><span class="n">raw_motif</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalize motif string.</span>
+
+<span class="sd">    Normalization steps:</span>
+
+<span class="sd">    - Convert to uppercase</span>
+<span class="sd">    - Remove spaces and non-letter characters</span>
+<span class="sd">    - Canonicalize using ``trtools.utils.utils.GetCanonicalMotif``</span>
+
+<span class="sd">    Returns an empty string if nothing usable remains.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    raw_motif : str or None</span>
+<span class="sd">        Input motif string to normalize. If ``None``, an empty string is returned.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        Normalized canonical motif, or an empty string if invalid.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">raw_motif</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">raw_motif</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="c1"># Uppercase and keep only letters (A–Z)</span>
+    <span class="n">cleaned</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ch</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">raw_motif</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="k">if</span> <span class="n">ch</span><span class="o">.</span><span class="n">isalpha</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">cleaned</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="c1"># Canonical motif</span>
+    <span class="n">canonical</span> <span class="o">=</span> <span class="n">GetCanonicalMotif</span><span class="p">(</span><span class="n">cleaned</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">canonical</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_info</span><span class="p">(</span><span class="n">info_field</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">info_field</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;=&quot;</span> <span class="ow">in</span> <span class="n">item</span><span class="p">:</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">info</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+    <span class="k">return</span> <span class="n">info</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_copy_number</span><span class="p">(</span><span class="n">cn_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parse copy-number field (``REPCN`` / ``REPLEN``) into two alleles.</span>
+
+<span class="sd">    The input is expected to be a comma-separated string, e.g. ``&quot;10,11&quot;``.</span>
+
+<span class="sd">    Rules:</span>
+
+<span class="sd">    - If a single value is provided, it is treated as homozygous (``a == b``).</span>
+<span class="sd">    - If two values are provided, they are returned as-is.</span>
+<span class="sd">    - If more than two values are provided, returns ``(&quot;.&quot;, &quot;.&quot;)`` (caller can skip).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cn_str : str</span>
+<span class="sd">        Copy-number string to parse (e.g. ``&quot;10,11&quot;``).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple[str, str]</span>
+<span class="sd">        Two allele values as strings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">cn_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">open_maybe_gzip</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.gz&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="process_vcf_to_rows">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.process_vcf_to_rows">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_vcf_to_rows</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">filter_by_pass</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">filter_by_perfect</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parse a single STR-annotated VCF into row dictionaries.</span>
+
+<span class="sd">    Supports:</span>
+
+<span class="sd">    - GangSTR: uses ``FORMAT/REPCN`` as copy number</span>
+<span class="sd">    - conSTRain: uses ``FORMAT/REPLEN`` as copy number</span>
+<span class="sd">    - VCF annotated with ``strvcf_annotator`` (``INFO/RU``, ``INFO/REF``, ``FORMAT/REPCN``)</span>
+
+<span class="sd">    Filtering options</span>
+<span class="sd">    -----------------</span>
+<span class="sd">    filter_by_pass</span>
+<span class="sd">        If ``True`` (default), keep only records with ``FILTER == &quot;PASS&quot;``.</span>
+<span class="sd">        If ``False``, ignore the ``FILTER`` field.</span>
+<span class="sd">    filter_by_perfect</span>
+<span class="sd">        If ``True`` (default), and ``INFO/PERFECT`` is present, keep only records</span>
+<span class="sd">        where ``PERFECT != &quot;FALSE&quot;`` (i.e. skip variants where ``PERFECT == &quot;FALSE&quot;``).</span>
+<span class="sd">        If ``False``, ignore the ``PERFECT`` flag completely.</span>
+
+<span class="sd">    Assumptions after validation</span>
+<span class="sd">    ----------------------------</span>
+<span class="sd">    - First sample column after ``FORMAT`` is NORMAL (index 9 in standard VCF).</span>
+<span class="sd">    - Second sample column after ``FORMAT`` is TUMOR (index 10).</span>
+<span class="sd">    - STR annotations are present in ``INFO`` / ``FORMAT``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    path : str or pathlib.Path</span>
+<span class="sd">        Path to the STR-annotated VCF file.</span>
+<span class="sd">    filter_by_pass : bool, optional</span>
+<span class="sd">        Whether to keep only records with ``FILTER == &quot;PASS&quot;``.</span>
+<span class="sd">    filter_by_perfect : bool, optional</span>
+<span class="sd">        Whether to filter by ``INFO/PERFECT`` when present.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list[dict]</span>
+<span class="sd">        List of dictionaries, one per parsed STR record.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="c1"># --- Validate VCF first ---</span>
+    <span class="n">vres</span> <span class="o">=</span> <span class="n">validate_vcf</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">vres</span><span class="o">.</span><span class="n">has_str_annotations</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;VCF &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; is missing required STR annotations &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(INFO/RU, INFO/REF, and either FORMAT/REPCN or FORMAT/REPLEN). &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Annotate it with &#39;strvcf_annotator&#39; or use a supported STR caller &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(GangSTR / conSTRain) before using str_mut_signatures.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">vres</span><span class="o">.</span><span class="n">copy_number_field</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Should not happen if has_str_annotations is True, but keep it explicit</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;VCF &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; does not define a supported copy-number FORMAT field &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(expected REPCN for GangSTR or REPLEN for conSTRain).&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">cn_field</span> <span class="o">=</span> <span class="n">vres</span><span class="o">.</span><span class="n">copy_number_field</span>  <span class="c1"># &quot;REPCN&quot; or &quot;REPLEN&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">vres</span><span class="o">.</span><span class="n">has_paired_samples</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;VCF &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; must contain at least two samples &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(normal and tumor) after the FORMAT column.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">vres</span><span class="o">.</span><span class="n">genotype_separator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;VCF &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; does not have a usable GT field in the first record &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(could not determine phased &#39;|&#39; vs unphased &#39;/&#39;).&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">genotype_separator</span> <span class="o">=</span> <span class="n">vres</span><span class="o">.</span><span class="n">genotype_separator</span>  <span class="c1"># &#39;|&#39; or &#39;/&#39;</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">filter_not_passed_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">non_perfect_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">written_variants</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># We are using filename as sample identifier</span>
+    <span class="n">sample_name</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.vcf&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.vcf.gz&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="n">header_cols</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">normal_idx</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">tumor_idx</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">format_fields</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">with</span> <span class="n">open_maybe_gzip</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="c1"># Header with column names</span>
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#CHROM&quot;</span><span class="p">):</span>
+                <span class="n">header_cols</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">header_cols</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">11</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;VCF &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; must have at least 2 samples (normal, tumor) &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;in the header after FORMAT.&quot;</span>
+                    <span class="p">)</span>
+                <span class="c1"># By convention: first = NORMAL, second = TUMOR</span>
+                <span class="n">normal_idx</span> <span class="o">=</span> <span class="mi">9</span>
+                <span class="n">tumor_idx</span> <span class="o">=</span> <span class="mi">10</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Other header lines</span>
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Data line</span>
+            <span class="n">cols</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="c1"># malformed, skip</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># FILTER == PASS (optional)</span>
+            <span class="k">if</span> <span class="n">filter_by_pass</span> <span class="ow">and</span> <span class="n">cols</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;PASS&quot;</span><span class="p">:</span>
+                <span class="n">filter_not_passed_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+
+            <span class="n">info</span> <span class="o">=</span> <span class="n">parse_info</span><span class="p">(</span><span class="n">cols</span><span class="p">[</span><span class="mi">7</span><span class="p">])</span>
+
+            <span class="c1"># PERFECT calls only (optional, only applies if PERFECT exists)</span>
+            <span class="k">if</span> <span class="n">filter_by_perfect</span> <span class="ow">and</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PERFECT&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;FALSE&quot;</span><span class="p">:</span>
+                <span class="n">non_perfect_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+
+            <span class="n">chrom</span> <span class="o">=</span> <span class="n">cols</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">cols</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">tmp_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">chrom</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">pos</span><span class="si">}</span><span class="s2">&quot;</span>
+
+            <span class="n">end</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;END&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">period</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PERIOD&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">ref</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;REF&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">motif</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;RU&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">motif</span> <span class="o">=</span> <span class="n">normalize_motif</span><span class="p">(</span><span class="n">motif</span><span class="p">)</span>
+            <span class="c1"># FORMAT &amp; samples</span>
+            <span class="k">if</span> <span class="n">format_fields</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">format_fields</span> <span class="o">=</span> <span class="n">cols</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">normal_sample</span> <span class="o">=</span> <span class="n">cols</span><span class="p">[</span><span class="n">normal_idx</span><span class="p">]</span>
+                <span class="n">tumor_sample</span> <span class="o">=</span> <span class="n">cols</span><span class="p">[</span><span class="n">tumor_idx</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">IndexError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;VCF &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; does not contain expected normal/tumor sample &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;columns at indices 9 and 10.&quot;</span>
+                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">err</span>
+
+            <span class="c1"># parse NORMAL copy numbers</span>
+            <span class="n">normal_values</span> <span class="o">=</span> <span class="n">normal_sample</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+            <span class="n">normal_fmt</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">format_fields</span><span class="p">,</span> <span class="n">normal_values</span><span class="p">))</span>
+            <span class="n">n_a</span><span class="p">,</span> <span class="n">n_b</span> <span class="o">=</span> <span class="n">parse_copy_number</span><span class="p">(</span><span class="n">normal_fmt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cn_field</span><span class="p">,</span> <span class="s2">&quot;.,.&quot;</span><span class="p">))</span>
+
+            <span class="c1"># parse TUMOR copy numbers</span>
+            <span class="n">tumor_values</span> <span class="o">=</span> <span class="n">tumor_sample</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+            <span class="n">tumor_fmt</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">format_fields</span><span class="p">,</span> <span class="n">tumor_values</span><span class="p">))</span>
+            <span class="n">t_a</span><span class="p">,</span> <span class="n">t_b</span> <span class="o">=</span> <span class="n">parse_copy_number</span><span class="p">(</span><span class="n">tumor_fmt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cn_field</span><span class="p">,</span> <span class="s2">&quot;.,.&quot;</span><span class="p">))</span>
+
+            <span class="c1"># Require numeric copy numbers for all alleles; otherwise skip variant</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">n_a</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="n">n_b</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="n">t_a</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">and</span> <span class="n">t_b</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()):</span>
+                <span class="k">continue</span>
+
+            <span class="n">written_variants</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;sample&quot;</span><span class="p">:</span> <span class="n">sample_name</span><span class="p">,</span>
+                    <span class="s2">&quot;tmp_id&quot;</span><span class="p">:</span> <span class="n">tmp_id</span><span class="p">,</span>
+                    <span class="s2">&quot;tumor_allele_a&quot;</span><span class="p">:</span> <span class="n">t_a</span><span class="p">,</span>
+                    <span class="s2">&quot;tumor_allele_b&quot;</span><span class="p">:</span> <span class="n">t_b</span><span class="p">,</span>
+                    <span class="s2">&quot;normal_allele_a&quot;</span><span class="p">:</span> <span class="n">n_a</span><span class="p">,</span>
+                    <span class="s2">&quot;normal_allele_b&quot;</span><span class="p">:</span> <span class="n">n_b</span><span class="p">,</span>
+                    <span class="s2">&quot;end&quot;</span><span class="p">:</span> <span class="n">end</span><span class="p">,</span>
+                    <span class="s2">&quot;period&quot;</span><span class="p">:</span> <span class="n">period</span><span class="p">,</span>
+                    <span class="s2">&quot;ref&quot;</span><span class="p">:</span> <span class="n">ref</span><span class="p">,</span>
+                    <span class="s2">&quot;motif&quot;</span><span class="p">:</span> <span class="n">motif</span><span class="p">,</span>
+                    <span class="s2">&quot;genotype_separator&quot;</span><span class="p">:</span> <span class="n">genotype_separator</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Simple logging</span>
+    <span class="k">if</span> <span class="n">filter_by_pass</span><span class="p">:</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="n">written_variants</span> <span class="o">+</span> <span class="n">filter_not_passed_count</span>
+        <span class="k">if</span> <span class="n">denom</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pct</span> <span class="o">=</span> <span class="n">filter_not_passed_count</span> <span class="o">/</span> <span class="n">denom</span> <span class="o">*</span> <span class="mi">100</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: skipped </span><span class="si">{</span><span class="n">filter_not_passed_count</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">pct</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">%) variants due to FILTER != PASS&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filter_by_perfect</span><span class="p">:</span>
+        <span class="n">total_checked</span> <span class="o">=</span> <span class="n">written_variants</span> <span class="o">+</span> <span class="n">non_perfect_count</span>
+        <span class="k">if</span> <span class="n">total_checked</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pct</span> <span class="o">=</span> <span class="n">non_perfect_count</span> <span class="o">/</span> <span class="n">total_checked</span> <span class="o">*</span> <span class="mi">100</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: skipped </span><span class="si">{</span><span class="n">non_perfect_count</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">pct</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">%) variants due to PERFECT == FALSE&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">rows</span></div>
+
+
+
+<div class="viewcode-block" id="parse_vcf_files">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.parse_vcf_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_vcf_files</span><span class="p">(</span>
+    <span class="n">input_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">filter_by_pass</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">filter_by_perfect</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process all VCF (``.vcf`` / ``.vcf.gz``) files in a directory into a DataFrame.</span>
+
+<span class="sd">    Supports GangSTR and conSTRain STR-annotated VCFs, as well as VCFs annotated</span>
+<span class="sd">    with ``strvcf_annotator``.</span>
+
+<span class="sd">    If a file causes an error, it is skipped and a message is printed.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input_dir : str or pathlib.Path</span>
+<span class="sd">        Directory containing ``.vcf`` or ``.vcf.gz`` files.</span>
+<span class="sd">    filter_by_pass : bool, optional</span>
+<span class="sd">        If ``True``, keep only records with ``FILTER == &quot;PASS&quot;``.</span>
+<span class="sd">    filter_by_perfect : bool, optional</span>
+<span class="sd">        If ``True``, keep only records with ``INFO/PERFECT != &quot;FALSE&quot;`` when present.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Parsed STR records concatenated across all input files.</span>
+
+<span class="sd">        Columns:</span>
+
+<span class="sd">        - ``sample``</span>
+<span class="sd">        - ``tmp_id``</span>
+<span class="sd">        - ``tumor_allele_a``</span>
+<span class="sd">        - ``tumor_allele_b``</span>
+<span class="sd">        - ``normal_allele_a``</span>
+<span class="sd">        - ``normal_allele_b``</span>
+<span class="sd">        - ``end``</span>
+<span class="sd">        - ``period``</span>
+<span class="sd">        - ``ref``</span>
+<span class="sd">        - ``motif``</span>
+<span class="sd">        - ``genotype_separator``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">input_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span>
+    <span class="n">all_rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">input_dir</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()):</span>
+        <span class="c1"># accept foo.vcf and foo.vcf.gz</span>
+        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.vcf&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.vcf.gz&quot;</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">rows</span> <span class="o">=</span> <span class="n">process_vcf_to_rows</span><span class="p">(</span>
+                    <span class="n">file</span><span class="p">,</span>
+                    <span class="n">filter_by_pass</span><span class="o">=</span><span class="n">filter_by_pass</span><span class="p">,</span>
+                    <span class="n">filter_by_perfect</span><span class="o">=</span><span class="n">filter_by_perfect</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># skip problematic file but continue with the rest</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> due to error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">all_rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+
+    <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;sample&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tmp_id&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tumor_allele_a&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tumor_allele_b&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;normal_allele_a&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;normal_allele_b&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;end&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;period&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ref&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;motif&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;genotype_separator&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">all_rows</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">all_rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="save_counts_matrix">
+<a class="viewcode-back" href="../../../main.html#str_mut_signatures.save_counts_matrix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_counts_matrix</span><span class="p">(</span><span class="n">mutations_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">output_csv</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save a mutation counts matrix to a CSV file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mutations_data : pandas.DataFrame</span>
+<span class="sd">        DataFrame containing mutation count data to be written to disk.</span>
+<span class="sd">    output_csv : str or pathlib.Path</span>
+<span class="sd">        Path to the output CSV file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mutations_data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">output_csv</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Olesia Kondrateva.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
