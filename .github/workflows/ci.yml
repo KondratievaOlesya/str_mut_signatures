@@ -23,7 +23,7 @@ jobs:
     - name: Test with tox
       run: tox
 
-  # Upload coverage
+    # Upload coverage
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.12'
       uses: codecov/codecov-action@v5

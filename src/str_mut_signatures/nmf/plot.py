@@ -127,7 +127,7 @@ def plot_pca_samples(
     ax: plt.Axes | None = None,
     title: str | None = None,
     alpha: float = 0.8,
-    cmap: str = "tab20",
+    cmap: str | None = None,
     s: float = 30.0,
 ) -> tuple[pd.DataFrame, np.ndarray, plt.Axes]:
     """
@@ -158,6 +158,13 @@ def plot_pca_samples(
         Plot title. If ``None``, a default title is generated.
     alpha : float, optional
         Point transparency. Default is 0.8.
+    cmap : str or None, optional
+        Matplotlib colormap name used for coloring samples.
+
+        - If ``group`` is detected as categorical, the default is ``"tab20"``.
+        - If ``group`` is detected as continuous, the default is ``"viridis"``.
+
+        If provided explicitly, this colormap is used in both cases.
     s : float, optional
         Point size. Default is 30.0.
 
@@ -223,7 +230,9 @@ def plot_pca_samples(
     is_continuous = bool(is_numeric and (n_unique > 10 or unique_frac > 0.30))
     if is_continuous:
         # ---- continuous coloring ----
-        cmap_obj = plt.get_cmap(cmap)
+        cmap_name = cmap if cmap is not None else "viridis"
+        # ---- continuous coloring ----
+        cmap_obj = plt.get_cmap(cmap_name)
         vmin = np.nanmin(values.to_numpy(dtype=float))
         vmax = np.nanmax(values.to_numpy(dtype=float))
         norm = plt.Normalize(vmin=vmin, vmax=vmax)
@@ -241,11 +250,12 @@ def plot_pca_samples(
         fig.colorbar(mappable, ax=ax, label="group")
 
     else:
+        cmap_name = cmap if cmap is not None else "tab20"
         # ---- categorical coloring ----
         uniq = plot_df["group"].dropna().unique()
         n_groups = len(uniq)
 
-        cmap_obj = plt.get_cmap(cmap, max(n_groups, 1))
+        cmap_obj = plt.get_cmap(cmap_name, max(n_groups, 1))
         color_map = {g: cmap_obj(i) for i, g in enumerate(uniq)}
 
         for g, sub in plot_df.groupby("group", dropna=False):

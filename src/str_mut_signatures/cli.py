@@ -52,7 +52,7 @@ Examples:
   str_mut_signatures extract \
     --vcf-dir data/vcfs \
     --out-matrix counts_len.tsv \
-    --ru-len \
+    --ru-length \
     --ref-length \
     --change
 

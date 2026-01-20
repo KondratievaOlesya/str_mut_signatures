@@ -96,7 +96,7 @@ Basic pipeline
     mutations = parse_vcf_files("vcf_directory/")
 
     # 2) Build a mutation count matrix
-    # ru_length: 
+    # ru_length:
     #   include repeat-unit length (LEN{len(motif)})
     # ru:
     #   None     -> ignore motif
@@ -108,7 +108,7 @@ Basic pipeline
     #   include tumor–normal repeat-length change
     matrix = build_mutation_matrix(
         mutations,
-        ru_length="length",
+        ru_length=True,
         ru="class",
         ref_length=True,
         change=True,
@@ -178,7 +178,7 @@ Command Line
     str_mut_signatures extract \
         --vcf-dir data/vcfs/ \
         --out-matrix counts_raw.tsv \
-        --ru-len \
+        --ru-length \
         --ru class \
         --ref-length \
         --change
