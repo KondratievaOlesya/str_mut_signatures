@@ -13,7 +13,7 @@ from str_mut_signatures.extract_tally.tally import (
     compute_changes_for_row,
     is_phased,
     make_feature,
-    motif_is_at_rich,
+    motif_base_class,
     validate_mutations_data,
 )
 
@@ -59,31 +59,31 @@ def mutations_df(vcf_dir):
 MATRIX_CASES = [
     (
         "matrix_ru_length_ref_change",
-        {"ru": "length", "ref_length": True, "change": True},
+        {"ru_length": True, "ru": None, "ref_length": True, "change": True},
         r"^LEN\d+_\d+_[+-]\d+$",
         "afd366b9975dd59ec6dbc593d7bb8ea8",
     ),
     (
         "matrix_ru_seq_ref_change",
-        {"ru": "ru", "ref_length": True, "change": True},
+        {"ru_length": False, "ru": "ru", "ref_length": True, "change": True},
         r"^[^_]+_\d+_[+-]\d+$",
         "51c062035ebf6a3c19ac295fa085b104",
     ),
     (
         "matrix_no_ru_ref_change",
-        {"ru": None, "ref_length": True, "change": True},
+        {"ru_length": False, "ru": None, "ref_length": True, "change": True},
         r"^\d+_[+-]\d+$",
         "27b480e60805e209500d3839502dd149",
     ),
     (
         "matrix_ru_length_no_change",
-        {"ru": "length", "ref_length": True, "change": False},
+        {"ru_length": True, "ru": None, "ref_length": True, "change": False},
         r"^LEN\d+_\d+$",
         "1d5780166d7a508b847a0a8291079e8c",
     ),
     (
         "matrix_ru_seq_change_only",
-        {"ru": "ru", "ref_length": False, "change": True},
+        {"ru_length": False, "ru": "ru", "ref_length": False, "change": True},
         r"^[^_]+_[+-]\d+$",
         "10a7c3cf0cd73b68e81744aa746a19d6",
     ),
@@ -247,22 +247,35 @@ class TestComputeChangesForRow:
         assert all(pd.isna(out[k]) for k in ["change_a", "change_b", "ref_a", "ref_b"])
 
 
-class TestMotifIsAtRich:
-    def test_at_rich_simple(self):
-        assert motif_is_at_rich("A") == "AT_rich"
-        assert motif_is_at_rich("T") == "AT_rich"
-        assert motif_is_at_rich("AT") == "AT_rich"
-        assert motif_is_at_rich("tTaA") == "AT_rich"
+class TestMotifBaseClass:
+    def test_at_only_simple(self):
+        assert motif_base_class("A") == "AT_only"
+        assert motif_base_class("T") == "AT_only"
+        assert motif_base_class("AT") == "AT_only"
+        assert motif_base_class("tTaA") == "AT_only"
 
-    def test_non_at_rich_with_c_or_g(self):
-        assert motif_is_at_rich("AC") == "non_AT_rich"
-        assert motif_is_at_rich("AGT") == "non_AT_rich"
-        assert motif_is_at_rich("CG") == "non_AT_rich"
+    def test_gc_only_simple(self):
+        assert motif_base_class("G") == "GC_only"
+        assert motif_base_class("C") == "GC_only"
+        assert motif_base_class("GC") == "GC_only"
+        assert motif_base_class("cCgG") == "GC_only"
+
+    def test_mixed_with_at_and_gc(self):
+        assert motif_base_class("AC") == "mixed"
+        assert motif_base_class("AGT") == "mixed"
+        assert motif_base_class("CGT") == "mixed"
+        assert motif_base_class("ATGC") == "mixed"
 
     def test_missing_or_empty_motif_returns_na(self):
-        assert pd.isna(motif_is_at_rich(None))
-        assert pd.isna(motif_is_at_rich(pd.NA))
-        assert pd.isna(motif_is_at_rich(""))
+        assert pd.isna(motif_base_class(None))
+        assert pd.isna(motif_base_class(pd.NA))
+        assert pd.isna(motif_base_class(""))
+
+    def test_invalid_characters_return_na(self):
+        assert pd.isna(motif_base_class("N"))
+        assert pd.isna(motif_base_class("ATN"))
+        assert pd.isna(motif_base_class("AT-"))
+        assert pd.isna(motif_base_class("123"))
 
 
 class TestMakeFeature:
@@ -271,7 +284,8 @@ class TestMakeFeature:
             motif="A",
             ref=10,
             delta=1,
-            ru="length",
+            ru_length=True,
+            ru=None,
             ref_length=True,
             change=True,
         )
@@ -282,6 +296,7 @@ class TestMakeFeature:
             motif="AT",
             ref=20,
             delta=-2,
+            ru_length=False,
             ru="ru",
             ref_length=True,
             change=True,
@@ -293,29 +308,32 @@ class TestMakeFeature:
             motif="AT",
             ref=10,
             delta=1,
-            ru="AT",
+            ru_length=False,
+            ru="class",
             ref_length=True,
             change=True,
         )
-        assert feat == "AT_rich_10_+1"
+        assert feat == "AT_only_10_+1"
 
     def test_at_mode_non_at_rich(self):
         feat = make_feature(
             motif="AC",
             ref=8,
             delta=2,
-            ru="AT",
+            ru_length=False,
+            ru="class",
             ref_length=True,
             change=True,
         )
-        assert feat == "non_AT_rich_8_+2"
+        assert feat == "mixed_8_+2"
 
     def test_no_change_component_when_change_false(self):
         feat = make_feature(
             motif="A",
             ref=10,
             delta=0,
-            ru="length",
+            ru_length=True,
+            ru=None,
             ref_length=True,
             change=False,
         )
@@ -327,7 +345,8 @@ class TestMakeFeature:
             motif="A",
             ref=10,
             delta=0,
-            ru="length",
+            ru_length=True,
+            ru=None,
             ref_length=True,
             change=True,
         )
@@ -338,7 +357,8 @@ class TestMakeFeature:
             motif="A",
             ref=pd.NA,
             delta=1,
-            ru="length",
+            ru_length=True,
+            ru=None,
             ref_length=True,
             change=True,
         )
@@ -349,6 +369,7 @@ class TestMakeFeature:
             motif="A",
             ref=10,
             delta=1,
+            ru_length=False,
             ru=None,
             ref_length=False,
             change=False,
@@ -362,6 +383,7 @@ class TestMakeFeature:
                 motif="A",
                 ref=10,
                 delta=1,
+                ru_length=False,
                 ru="something",  # type: ignore[arg-type]
                 ref_length=True,
                 change=True,
@@ -389,7 +411,7 @@ class TestBuildMutationMatrix:
             }
         )
 
-        mat = build_mutation_matrix(df, ru="length", ref_length=True, change=True)
+        mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=True)
 
         assert mat.shape == (1, 1)
         assert list(mat.index) == ["s1"]
@@ -417,7 +439,7 @@ class TestBuildMutationMatrix:
             }
         )
 
-        mat = build_mutation_matrix(df, ru="length", ref_length=True, change=True)
+        mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=True)
 
         assert mat.shape == (1, 1)
         assert list(mat.index) == ["s1"]
@@ -441,13 +463,13 @@ class TestBuildMutationMatrix:
             }
         )
 
-        mat = build_mutation_matrix(df, ru="AT", ref_length=True, change=True)
+        mat = build_mutation_matrix(df, ru_length=False, ru="class", ref_length=True, change=True)
 
         cols = set(mat.columns)
-        # First row: AT_rich_10_+1 (each allele 10 -> 11 → two events, but both same)
-        # Second row: non_AT_rich_8_+1 (similar)
-        assert "AT_rich_10_+1" in cols
-        assert "non_AT_rich_8_+1" in cols
+        # First row: AT_only_10_+1 (each allele 10 -> 11 → two events, but both same)
+        # Second row: mixed_8_+1 (similar)
+        assert "AT_only_10_+1" in cols
+        assert "mixed_8_+1" in cols
         # Only one sample "s1"
         assert list(mat.index) == ["s1"]
 
@@ -467,7 +489,7 @@ class TestBuildMutationMatrix:
             }
         )
 
-        mat = build_mutation_matrix(df, ru="length", ref_length=True, change=True)
+        mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=True)
         assert mat.empty
 
     def test_change_false_keeps_all_events(self):
@@ -487,9 +509,9 @@ class TestBuildMutationMatrix:
             }
         )
 
-        mat = build_mutation_matrix(df, ru="length", ref_length=True, change=False)
+        mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=False)
 
-        # With change=False + ref_length=True + ru="length":
+        # With change=False + ref_length=True + ru_length=True:
         # feature is LEN1_10 for each allele/event.
         assert list(mat.index) == ["s1"]
         assert list(mat.columns) == ["LEN1_10"]
@@ -533,7 +555,5 @@ class TestBuildMutationMatrixLarge:
         actual_hash = file_hash(out_path)
 
         assert actual_hash == expected_hash, (
-            f"{name} hash mismatch:\n"
-            f"  expected: {expected_hash}\n"
-            f"  actual:   {actual_hash}"
+            f"{name} hash mismatch:\n  expected: {expected_hash}\n  actual:   {actual_hash}"
         )

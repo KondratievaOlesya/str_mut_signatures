@@ -4,7 +4,6 @@ import hashlib
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +12,7 @@ import pytest
 # -------------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------------
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -50,6 +50,7 @@ def build_hash_manifest(root: str | Path) -> str:
     lines = [f"{rel}\t{h}" for rel, h in entries]
     return "\n".join(lines) + ("\n" if lines else "")
 
+
 def file_hash(path: str) -> str:
     """Calculate MD5 hash of a file."""
     h = hashlib.md5()
@@ -73,7 +74,7 @@ CLI_MATRIX_CASES = [
     (
         "cli_matrix_ru_length_ref_change",
         # extra CLI args (after --vcf-dir and --out-matrix)
-        ["--ru", "length", "--ref-length", "--change"],
+        ["--ru-length", "--ref-length", "--change"],
         r"^LEN\d+_\d+_[+-]\d+$",
         "bf7b088df766afae97ee38bd3ec59193",
     ),
@@ -85,13 +86,13 @@ CLI_MATRIX_CASES = [
     ),
     (
         "cli_matrix_no_ru_ref_change",
-        ["--ru", "none", "--ref-length", "--change"],
+        ["--ref-length", "--change"],
         r"^\d+_[+-]\d+$",
         "0f1b42c745fae72b61151b66222d29f9",
     ),
     (
         "cli_matrix_ru_length_no_change",
-        ["--ru", "length", "--ref-length"],
+        ["--ru-length", "--ref-length"],
         r"^LEN\d+_\d+$",
         "d14d3ba6ce19e548b6c175f518ac5dac",
     ),
@@ -113,11 +114,7 @@ class TestCLIBasicUsage:
     # @TODO Write checks
     def test_cli_help(self):
         """`str_mut_signatures --help` runs and shows subcommands."""
-        result = subprocess.run(
-            ["str_mut_signatures", "--help"],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run(["str_mut_signatures", "--help"], capture_output=True, text=True)
         assert result.returncode == 0
         # very loose checks
         assert "extract" in result.stdout
@@ -125,21 +122,13 @@ class TestCLIBasicUsage:
 
     def test_version_command(self):
         """Test --version flag."""
-        result = subprocess.run(
-            ["str_mut_signatures", "--version"],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run(["str_mut_signatures", "--version"], capture_output=True, text=True)
         assert result.returncode == 0
-        assert "1.0.0" in result.stdout
+        assert "2.0.0" in result.stdout
 
     def test_no_arguments_fails(self):
         """Test that running without arguments fails."""
-        result = subprocess.run(
-            ["str_mut_signatures"],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run(["str_mut_signatures"], capture_output=True, text=True)
         assert result.returncode != 0
         assert "required" in result.stderr.lower() or "error" in result.stderr.lower()
 
@@ -147,6 +136,7 @@ class TestCLIBasicUsage:
 # -------------------------------------------------------------------------
 # Tests: `extract` command
 # -------------------------------------------------------------------------
+
 
 class TestCLIExtractCommand:
     """Tests for `extract` command."""
@@ -159,9 +149,11 @@ class TestCLIExtractCommand:
             [
                 "str_mut_signatures",
                 "extract",
-                "--vcf-dir", vcf_dir,
-                "--out-matrix", output_matrix,
-                "--ru", "length",
+                "--vcf-dir",
+                vcf_dir,
+                "--out-matrix",
+                output_matrix,
+                "--ru-length",
                 "--ref-length",
                 "--change",
             ],
@@ -170,9 +162,7 @@ class TestCLIExtractCommand:
             timeout=300,
         )
 
-        assert result.returncode == 0, (
-            f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        )
+        assert result.returncode == 0, f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
 
         # Output file exists and is non-empty
         assert os.path.exists(output_matrix), "Output matrix file was not created"
@@ -198,9 +188,12 @@ class TestCLIExtractCommand:
             [
                 "str_mut_signatures",
                 "extract",
-                "--vcf-dir", vcf_dir,
-                "--out-matrix", output_matrix,
-                "--ru", "ru",
+                "--vcf-dir",
+                vcf_dir,
+                "--out-matrix",
+                output_matrix,
+                "--ru",
+                "ru",
                 "--ref-length",
                 "--change",
             ],
@@ -209,9 +202,7 @@ class TestCLIExtractCommand:
             timeout=300,
         )
 
-        assert result.returncode == 0, (
-            f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        )
+        assert result.returncode == 0, f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
 
         assert os.path.exists(output_matrix), "Output matrix file was not created"
         df = pd.read_csv(output_matrix, sep="\t", index_col=0)
@@ -230,9 +221,12 @@ class TestCLIExtractCommand:
             [
                 "str_mut_signatures",
                 "extract",
-                "--vcf-dir", "/nonexistent/vcfs",
-                "--out-matrix", output_matrix,
-                "--ru", "length",
+                "--vcf-dir",
+                "/nonexistent/vcfs",
+                "--out-matrix",
+                output_matrix,
+                "--ru",
+                "length",
                 "--ref-length",
                 "--change",
             ],
@@ -253,8 +247,10 @@ class TestCLIExtractCommand:
             [
                 "str_mut_signatures",
                 "extract",
-                "--vcf-dir", vcf_dir,
-                "--ru", "length",
+                "--vcf-dir",
+                vcf_dir,
+                "--ru",
+                "length",
                 "--ref-length",
                 "--change",
             ],
@@ -278,9 +274,11 @@ class TestCLINMFCommand:
             [
                 "str_mut_signatures",
                 "extract",
-                "--vcf-dir", vcf_dir,
-                "--out-matrix", matrix_path,
-                "--ru", "length",
+                "--vcf-dir",
+                vcf_dir,
+                "--out-matrix",
+                matrix_path,
+                "--ru-length",
                 "--ref-length",
                 "--change",
             ],
@@ -308,9 +306,12 @@ class TestCLINMFCommand:
             [
                 "str_mut_signatures",
                 "nmf",
-                "--matrix", matrix_path,
-                "--outdir", nmf_outdir,
-                "--n-signatures", str(n_signatures),
+                "--matrix",
+                matrix_path,
+                "--outdir",
+                nmf_outdir,
+                "--n-signatures",
+                str(n_signatures),
             ],
             capture_output=True,
             text=True,
@@ -318,9 +319,7 @@ class TestCLINMFCommand:
         )
 
         assert nmf_result.returncode == 0, (
-            "nmf CLI failed\n"
-            f"STDOUT:\n{nmf_result.stdout}\n\n"
-            f"STDERR:\n{nmf_result.stderr}"
+            f"nmf CLI failed\nSTDOUT:\n{nmf_result.stdout}\n\nSTDERR:\n{nmf_result.stderr}"
         )
 
         # Check that some TSV outputs exist
@@ -336,8 +335,7 @@ class TestCLINMFCommand:
                 has_nsig_dim = True
 
         assert has_nsig_dim, (
-            "No NMF TSV output appears to have a dimension equal to "
-            f"n_signatures={n_signatures}"
+            f"No NMF TSV output appears to have a dimension equal to n_signatures={n_signatures}"
         )
 
     def test_nmf_missing_arguments_fail(self, temp_output_dir):
@@ -350,28 +348,38 @@ class TestCLINMFCommand:
             [
                 "str_mut_signatures",
                 "nmf",
-                "--matrix", dummy_matrix,
-                "--n-signatures", "3",
+                "--matrix",
+                dummy_matrix,
+                "--n-signatures",
+                "3",
             ],
             capture_output=True,
             text=True,
         )
         assert result_no_outdir.returncode != 0
-        assert "outdir" in result_no_outdir.stderr.lower() or "required" in result_no_outdir.stderr.lower()
+        assert (
+            "outdir" in result_no_outdir.stderr.lower()
+            or "required" in result_no_outdir.stderr.lower()
+        )
 
         # Missing --matrix
         result_no_matrix = subprocess.run(
             [
                 "str_mut_signatures",
                 "nmf",
-                "--outdir", temp_output_dir,
-                "--n-signatures", "3",
+                "--outdir",
+                temp_output_dir,
+                "--n-signatures",
+                "3",
             ],
             capture_output=True,
             text=True,
         )
         assert result_no_matrix.returncode != 0
-        assert "matrix" in result_no_matrix.stderr.lower() or "required" in result_no_matrix.stderr.lower()
+        assert (
+            "matrix" in result_no_matrix.stderr.lower()
+            or "required" in result_no_matrix.stderr.lower()
+        )
 
     def test_nmf_invalid_matrix_path(self, temp_output_dir):
         """Test error handling for invalid matrix path."""
@@ -382,9 +390,12 @@ class TestCLINMFCommand:
             [
                 "str_mut_signatures",
                 "nmf",
-                "--matrix", "/nonexistent/matrix.tsv",
-                "--outdir", nmf_outdir,
-                "--n-signatures", "3",
+                "--matrix",
+                "/nonexistent/matrix.tsv",
+                "--outdir",
+                nmf_outdir,
+                "--n-signatures",
+                "3",
             ],
             capture_output=True,
             text=True,
@@ -405,9 +416,9 @@ class TestCLIIntegration:
         """
         cmd = ["str_mut_signatures"] + args
         result = subprocess.run(cmd, capture_output=True, text=True)
-        assert (
-            result.returncode == 0
-        ), f"CLI failed: {' '.join(cmd)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"CLI failed: {' '.join(cmd)}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
         return result
 
     # ------------------------------------------------------------------
@@ -444,8 +455,7 @@ class TestCLIIntegration:
                 vcf_dir,
                 "--out-matrix",
                 str(matrix_raw),
-                "--ru",
-                "length",
+                "--ru-length",
                 "--ref-length",
                 "--change",
             ]
@@ -523,8 +533,7 @@ class TestCLIIntegration:
                 str(new_vcf_dir),
                 "--out-matrix",
                 str(new_matrix),
-                "--ru",
-                "length",
+                "--ru-length",
                 "--ref-length",
                 "--change",
             ]

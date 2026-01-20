@@ -145,7 +145,17 @@ def validate_vcf(vcf_path: str | Path) -> VCFValidationResult:
     #  - FORMAT: REPCN, REPCI, RC, ENCLREADS, FLNKREADS, ML, INS, STDERR, QEXP, GGL
     #  - INFO: GRID, EXPTHRESH, STUTTERUP, STUTTERDOWN, STUTTERP
     gangstr_markers_info = {"GRID", "EXPTHRESH", "STUTTERUP", "STUTTERDOWN", "STUTTERP"}
-    gangstr_markers_format = {"REPCI", "RC", "ENCLREADS", "FLNKREADS", "ML", "INS", "STDERR", "QEXP", "GGL"}
+    gangstr_markers_format = {
+        "REPCI",
+        "RC",
+        "ENCLREADS",
+        "FLNKREADS",
+        "ML",
+        "INS",
+        "STDERR",
+        "QEXP",
+        "GGL",
+    }
 
     # conSTRain-specific clues:
     #  - FORMAT: CN, FREQS, REPLEN
@@ -155,10 +165,7 @@ def validate_vcf(vcf_path: str | Path) -> VCFValidationResult:
         ("REPCN" in format_ids)
         and (gangstr_markers_info & info_ids or gangstr_markers_format & format_ids)
     )
-    is_constrain = bool(
-        ("REPLEN" in format_ids)
-        and (constrain_markers_format & format_ids)
-    )
+    is_constrain = bool(("REPLEN" in format_ids) and (constrain_markers_format & format_ids))
 
     if is_gangstr and not is_constrain:
         caller: Literal["gangstr", "constrain", "unknown"] = "gangstr"
@@ -179,11 +186,7 @@ def validate_vcf(vcf_path: str | Path) -> VCFValidationResult:
     # --- Detect GT separator ("|" vs "/") from the first record, if possible --
     genotype_separator: str | None = None
 
-    if (
-        first_record_line is not None
-        and format_col_idx is not None
-        and has_paired_samples
-    ):
+    if first_record_line is not None and format_col_idx is not None and has_paired_samples:
         fields = first_record_line.split()
         # Sanity: we need FORMAT + at least two samples
         if len(fields) > format_col_idx + 2:

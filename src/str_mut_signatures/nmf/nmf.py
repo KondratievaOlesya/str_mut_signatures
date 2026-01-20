@@ -32,18 +32,28 @@ class NMFResult:
     Attributes
     ----------
     signatures : pandas.DataFrame
+        :no-index:
         Matrix of signature profiles.
-        - index   : features (same as input matrix.columns)
-        - columns : signatures (Signature_1, Signature_2, ...)
+
+        - index   : features (same as input ``matrix.columns``)
+        - columns : signatures (``Signature_1``, ``Signature_2``, ...)
 
     exposures : pandas.DataFrame
+        :no-index:
         Matrix of sample exposures to each signature.
-        - index   : samples (same as input matrix.index)
-        - columns : signatures (Signature_1, Signature_2, ...)
 
-    model_params : dict
+        - index   : samples (same as input ``matrix.index``)
+        - columns : signatures (``Signature_1``, ``Signature_2``, ...)
+
+    groups : pandas.DataFrame
+        :no-index:
+        Sample-level grouping or annotation table aligned to exposures.
+        Typically indexed by sample (same as input ``matrix.index``).
+
+    model_params : dict[str, Any]
+        :no-index:
         Hyperparameters and metadata used to fit the model
-        (n_signatures, init, max_iter, random_state, etc.).
+        (e.g. ``n_signatures``, ``init``, ``max_iter``, ``random_state``).
     """
 
     signatures: pd.DataFrame
@@ -59,10 +69,25 @@ def make_groups_df(
     """
     Create a groups DataFrame indexed by samples.
 
-    Always returns a DataFrame with at least:
-      - group: string labels, default "1" for all samples
+    The returned DataFrame always contains at least one column:
 
-    If cluster_labels is provided, overwrites 'group' with cluster IDs (as strings).
+    - ``group``: string labels for each sample (default: ``"1"`` for all samples)
+
+    If ``cluster_labels`` is provided, the ``group`` column is overwritten with
+    the corresponding cluster identifiers (converted to strings).
+
+    Parameters
+    ----------
+    sample_index : pandas.Index
+        Index of sample identifiers to use for the resulting DataFrame.
+    cluster_labels : numpy.ndarray or None, optional
+        Array of cluster labels aligned with ``sample_index``.
+        If provided, these labels are used to populate the ``group`` column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Groups DataFrame indexed by sample, with at least a ``"group"`` column.
     """
     groups = pd.DataFrame(index=sample_index)
     groups["group"] = "1"
@@ -86,13 +111,42 @@ def add_labels_to_groups(
     allow_missing: bool = True,
 ) -> pd.DataFrame:
     """
-    Add external labels to groups_df by index (sample id).
+    Add external labels to a groups DataFrame by sample index.
 
-    - labels can be:
-        * Series (index=samples)
-        * DataFrame (index=samples) with one column, or with `label_col`.
-    - Ensures the merged labels correspond to the correct sample.
-    - Preserves all samples in groups_df.
+    Labels are merged into ``groups_df`` using the sample identifier as index.
+    All samples present in ``groups_df`` are preserved in the output.
+
+    The ``labels`` input may be provided in one of the following forms:
+
+    - :class:`pandas.Series` with sample IDs as index.
+    - :class:`pandas.DataFrame` with sample IDs as index and either:
+        * a single column, or
+        * a column named according to ``label_col``.
+
+    Parameters
+    ----------
+    groups_df : pandas.DataFrame
+        Groups DataFrame indexed by sample identifier.
+    labels : pandas.Series or pandas.DataFrame
+        External labels aligned by sample index.
+    label_col : str, optional
+        Name of the column to use or create for the merged labels.
+        Default is ``"label"``.
+    allow_missing : bool, optional
+        Whether to allow missing labels for some samples.
+        If ``False``, a :class:`ValueError` is raised when missing labels are found.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Copy of ``groups_df`` with an additional ``label_col`` column
+        containing the merged labels.
+
+    Raises
+    ------
+    ValueError
+        If ``allow_missing`` is ``False`` and some samples in ``groups_df``
+        have no corresponding label in ``labels``.
     """
     out = groups_df.copy()
 
@@ -128,9 +182,31 @@ def cluster_samples(
     random_state: int | None = 0,
 ) -> np.ndarray | None:
     """
-    Cluster samples using KMeans and select best k via silhouette score.
-    Returns an array of cluster labels (0..k-1) in the same order as `exposures.index`,
-    or None if clustering is not possible.
+    Cluster samples using KMeans and select the best ``k`` via silhouette score.
+
+    Clustering is performed on the rows of ``exposures`` (one row per sample).
+    The number of clusters is selected by evaluating silhouette scores for
+    candidate values of ``k`` up to ``max_clusters``.
+
+    If clustering cannot be performed (e.g., too few samples or invalid input),
+    the function returns ``None``.
+
+    Parameters
+    ----------
+    exposures : pandas.DataFrame
+        Sample-by-signature exposure matrix. Rows correspond to samples and
+        columns correspond to signatures.
+    max_clusters : int, optional
+        Maximum number of clusters to consider. Default is 6.
+    random_state : int or None, optional
+        Random seed passed to KMeans for reproducibility. If ``None``, the
+        estimator is not seeded.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        Array of cluster labels (``0`` .. ``k-1``) in the same order as
+        ``exposures.index``, or ``None`` if clustering is not possible.
     """
     n_samples = exposures.shape[0]
     if n_samples < 3:
@@ -163,12 +239,33 @@ def cluster_samples(
 
 def validate_input_matrix(matrix: pd.DataFrame) -> np.ndarray:
     """
-    Validate that the input is a non-empty, numeric, non-negative DataFrame.
+    Validate that the input is a non-empty, numeric, non-negative matrix.
+
+    This function checks that ``matrix`` is:
+
+    - A :class:`pandas.DataFrame`
+    - Non-empty
+    - Fully numeric
+    - Contains no negative values
+
+    On success, the underlying numeric values are returned as a NumPy array.
+
+    Parameters
+    ----------
+    matrix : pandas.DataFrame
+        Input matrix with samples as rows and features as columns.
 
     Returns
     -------
-    values : numpy.ndarray
-        The underlying numeric matrix (shape: n_samples x n_features).
+    numpy.ndarray
+        The underlying numeric array with shape
+        ``(n_samples, n_features)``.
+
+    Raises
+    ------
+    ValueError
+        If the input is empty, contains non-numeric values, or contains
+        negative entries.
     """
     if not isinstance(matrix, pd.DataFrame):
         raise TypeError("matrix must be a pandas.DataFrame")
@@ -202,14 +299,58 @@ def run_nmf(
     max_clusters: int = 1,  # <=1 means "no clustering"
 ) -> NMFResult:
     """
-    Run NMF decomposition on a STR mutation count matrix.
+    Run NMF decomposition on an STR mutation count matrix.
+
+    This function factorizes a non-negative mutation count matrix into:
+
+    - signature profiles (feature-by-signature)
+    - sample exposures (sample-by-signature)
+
+    Optionally, samples can be clustered based on their exposure profiles.
 
     Parameters
     ----------
     matrix : pandas.DataFrame
-        Non-negative count matrix:
-        - rows   : samples
-        - columns: mutation feature categories
+        Non-negative count matrix.
+
+        - rows    : samples
+        - columns : mutation feature categories
+    n_signatures : int
+        Number of signatures (components) to extract.
+    init : str, optional
+        Initialization method for NMF (passed to the underlying estimator).
+        Default is ``"nndsvd"``.
+    max_iter : int, optional
+        Maximum number of iterations. Default is 200.
+    random_state : int or None, optional
+        Random seed for reproducibility. If ``None``, the estimator is not seeded.
+        Default is 0.
+    alpha_W : float, optional
+        Regularization parameter for the W matrix (exposures), if supported by
+        the chosen NMF implementation. Default is 0.0.
+    alpha_H : float, optional
+        Regularization parameter for the H matrix (signatures), if supported by
+        the chosen NMF implementation. Default is 0.0.
+    l1_ratio : float, optional
+        The Elastic-Net mixing parameter, with ``0 <= l1_ratio <= 1``.
+        Default is 0.0.
+    max_clusters : int, optional
+        Maximum number of clusters to consider for optional exposure-based
+        clustering. Values ``<= 1`` disable clustering. Default is 1.
+
+    Returns
+    -------
+    NMFResult
+        Container with signature profiles, exposures, optional grouping
+        information, and model parameters.
+
+    Raises
+    ------
+    ValueError
+        If ``matrix`` is empty, contains non-numeric values, or contains
+        negative entries.
+    ValueError
+        If ``n_signatures`` is not a positive integer.
     """
     values = validate_input_matrix(matrix)
 
@@ -290,12 +431,32 @@ def run_nmf(
 
 def save_nmf_result(result: NMFResult, outdir: str | Path) -> None:
     """
-    Save NMFResult to a directory.
+    Save an :class:`NMFResult` to a directory on disk.
 
-    Creates:
-      - signatures.tsv  (features x K)
-      - exposures.tsv   (samples x K)
-      - metadata.json   (model_params + basic shape info + format_version)
+    This function writes the main components of the NMF decomposition to
+    tabular and JSON files in the specified output directory.
+
+    The following files are created:
+
+    - ``signatures.tsv``:
+        Signature profiles (features × K).
+    - ``exposures.tsv``:
+        Sample exposures (samples × K).
+    - ``metadata.json``:
+        JSON file containing ``model_params`` together with basic shape
+        information and a ``format_version`` field.
+
+    Parameters
+    ----------
+    result : NMFResult
+        Result object containing signatures, exposures, groups, and model
+        parameters to be saved.
+    outdir : str or pathlib.Path
+        Output directory where result files will be written.
+
+    Returns
+    -------
+    None
     """
     outpath = Path(outdir)
     outpath.mkdir(parents=True, exist_ok=True)
@@ -323,7 +484,30 @@ def save_nmf_result(result: NMFResult, outdir: str | Path) -> None:
 
 def load_nmf_result(outdir: str | Path) -> NMFResult:
     """
-    Load an NMFResult previously saved with save_nmf_result().
+    Load an :class:`NMFResult` previously saved with :func:`save_nmf_result`.
+
+    This function reads the files created by ``save_nmf_result`` from the given
+    directory and reconstructs the corresponding :class:`NMFResult` object.
+
+    The following files are expected in ``outdir``:
+
+    - ``signatures.tsv``:
+        Signature profiles (features × K).
+    - ``exposures.tsv``:
+        Sample exposures (samples × K).
+    - ``metadata.json``:
+        JSON file containing model parameters and basic shape information.
+
+    Parameters
+    ----------
+    outdir : str or pathlib.Path
+        Directory containing the saved NMF result files.
+
+    Returns
+    -------
+    NMFResult
+        Reconstructed NMF result with signatures, exposures, groups (if present),
+        and model parameters.
     """
     outpath = Path(outdir)
 
@@ -448,37 +632,47 @@ def project_onto_signatures(
     """
     Project new samples onto existing signatures to obtain exposures.
 
+    This function computes exposure weights for each new sample given a fixed
+    set of signature profiles.
+
     Parameters
     ----------
     new_matrix : pandas.DataFrame
-        Matrix of new samples:
-        - rows   : samples
-        - columns: features (must overlap signatures.index).
+        Matrix of new samples.
 
+        - rows    : samples
+        - columns : features (must overlap ``signatures.index``)
     signatures : pandas.DataFrame
-        Signature matrix:
-        - index   : features (same space as new_matrix.columns)
-        - columns : signatures (e.g., 'Signature_1', 'Signature_2', ...)
+        Signature profile matrix.
 
-    method : {"nnls"}, default "nnls"
-        Projection method. Currently only non-negative least squares ("nnls")
-        is implemented.
+        - index   : features (same feature space as ``new_matrix.columns``)
+        - columns : signatures (e.g., ``"Signature_1"``, ``"Signature_2"``, ...)
+    method : {"nnls"}, optional
+        Projection method. Currently only non-negative least squares
+        (``"nnls"``) is implemented.
 
     Returns
     -------
-    exposures : pandas.DataFrame
-        Exposures of new samples to the given signatures:
-        - rows   : samples (same as new_matrix.index)
-        - columns: signatures (same as signatures.columns)
+    pandas.DataFrame
+        Exposure matrix for the new samples.
+
+        - rows    : samples (same as ``new_matrix.index``)
+        - columns : signatures (same as ``signatures.columns``)
 
     Notes
     -----
-    For method="nnls":
-        For each sample x (1 x F), we solve:
+    For ``method="nnls"``, for each sample vector ``x`` (1 × F) the exposures
+    ``e`` are obtained by solving::
 
-            min_e || x - A e ||_2 subject to e >= 0
+        minimize || x - A e ||_2   subject to e >= 0
 
-        where A is the feature-by-signature matrix (F x K).
+    where ``A`` is the feature-by-signature matrix (F × K).
+
+    Raises
+    ------
+    ValueError
+        If ``method`` is not supported or if there is no overlap between
+        ``new_matrix.columns`` and ``signatures.index``.
     """
     if method != "nnls":
         raise ValueError('Only method="nnls" is currently supported.')

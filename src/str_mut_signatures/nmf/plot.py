@@ -127,53 +127,53 @@ def plot_pca_samples(
     ax: plt.Axes | None = None,
     title: str | None = None,
     alpha: float = 0.8,
+    cmap: str = "tab20",
     s: float = 30.0,
 ) -> tuple[pd.DataFrame, np.ndarray, plt.Axes]:
     """
     Run PCA on an NMF result (typically exposures) and plot PC1 vs PC2.
 
-    This is the main entry point:
-    - extracts a samples x features matrix from `result`
-      (by default `result.exposures`),
-    - computes PCA,
-    - color samples by NMFResult.groups
-    - returns PCA coordinates, variance explained, cluster labels and axes.
+    This is the main entry point for PCA visualization:
+
+    - Extract a samples × features matrix from ``result`` (by default
+      ``result.exposures``).
+    - Compute PCA coordinates.
+    - Color samples by ``result.groups``.
+    - Plot the first two principal components.
 
     Parameters
     ----------
     result : NMFResult
-        Output of `run_nmf`. Must have `.exposures` as a pandas DataFrame,
-        unless a `matrix` is explicitly passed.
-
-    matrix : pandas.DataFrame or None, default None
-        Optional matrix to use instead of `result.exposures`.
-        Must be samples x features. If None, uses `result.exposures`.
-
-    n_components : int, default 2
+        Output of :func:`run_nmf`. Must provide ``.exposures`` as a
+        :class:`pandas.DataFrame` unless ``matrix`` is explicitly provided.
+    matrix : pandas.DataFrame or None, optional
+        Optional matrix to use instead of ``result.exposures``.
+        Must be samples × features. If ``None``, uses ``result.exposures``.
+    n_components : int, optional
         Number of principal components to compute. Must be >= 2.
-
-    ax : matplotlib.axes.Axes or None, default None
-        Existing axes to plot on. If None, a new figure/axes is created.
-
-    title : str or None, default None
-        Plot title. If None, a default title is generated.
-
-    alpha : float, default 0.8
-        Point transparency.
-
-    s : float, default 30.0
-        Point size.
+        Default is 2.
+    ax : matplotlib.axes.Axes or None, optional
+        Existing axes to plot on. If ``None``, a new figure and axes are created.
+    title : str or None, optional
+        Plot title. If ``None``, a default title is generated.
+    alpha : float, optional
+        Point transparency. Default is 0.8.
+    s : float, optional
+        Point size. Default is 30.0.
 
     Returns
     -------
     coords : pandas.DataFrame
-        PCA coordinates (PC1, PC2, ...).
-
-    explained_variance_ratio_ : np.ndarray
-        Fraction of variance explained by each component.
-
+        PCA coordinates for each sample (``PC1``, ``PC2``, ...), indexed by sample.
+    explained_variance_ratio_ : numpy.ndarray
+        Fraction of variance explained by each principal component.
     ax : matplotlib.axes.Axes
-        Axes with the PCA scatter plot.
+        Axes containing the PCA scatter plot.
+
+    Raises
+    ------
+    ValueError
+        If ``n_components < 2`` or if the chosen matrix is empty or non-numeric.
     """
     # choose matrix
     if matrix is None:
@@ -203,8 +203,14 @@ def plot_pca_samples(
         raise ValueError("No samples left to plot after aligning PCA coords and groups.")
 
     # prepare axes
+    created_fig = False
     if ax is None:
         fig, ax = plt.subplots()
+        created_fig = True
+    else:
+        fig = ax.figure
+
+    values = plot_df["group"]
 
     # autodetect continuous (numeric) vs categorical
     is_numeric = pd.api.types.is_numeric_dtype(plot_df["group"])
@@ -216,31 +222,53 @@ def plot_pca_samples(
 
     is_continuous = bool(is_numeric and (n_unique > 10 or unique_frac > 0.30))
     if is_continuous:
-        cmap = plt.get_cmap("viridis")
-        norm = plt.Normalize(vmin=plot_df["group"].min(), vmax=plot_df["group"].max())
-        colors = cmap(norm(plot_df["group"]))
+        # ---- continuous coloring ----
+        cmap_obj = plt.get_cmap(cmap)
+        vmin = np.nanmin(values.to_numpy(dtype=float))
+        vmax = np.nanmax(values.to_numpy(dtype=float))
+        norm = plt.Normalize(vmin=vmin, vmax=vmax)
+
         ax.scatter(
             plot_df["PC1"].to_numpy(),
             plot_df["PC2"].to_numpy(),
-            c=colors,
+            c=cmap_obj(norm(values.to_numpy(dtype=float))),
             alpha=alpha,
             s=s,
         )
-        mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+
+        mappable = plt.cm.ScalarMappable(norm=norm, cmap=cmap_obj)
         mappable.set_array([])
-        plt.colorbar(mappable, ax=ax, label="Group")
+        fig.colorbar(mappable, ax=ax, label="group")
+
     else:
-        # plot per group to get a correct categorical legend
+        # ---- categorical coloring ----
+        uniq = plot_df["group"].dropna().unique()
+        n_groups = len(uniq)
+
+        cmap_obj = plt.get_cmap(cmap, max(n_groups, 1))
+        color_map = {g: cmap_obj(i) for i, g in enumerate(uniq)}
+
         for g, sub in plot_df.groupby("group", dropna=False):
+            color = color_map.get(g, "grey")
             ax.scatter(
                 sub["PC1"].to_numpy(),
                 sub["PC2"].to_numpy(),
                 alpha=alpha,
                 s=s,
+                color=color,
                 label=str(g),
             )
 
-        ax.legend(title="Group", fontsize="small")
+        # legend outside
+        ax.legend(
+            title="Group",
+            fontsize="small",
+            loc="upper left",
+            bbox_to_anchor=(1.02, 1.0),
+            borderaxespad=0.0,
+        )
+        if created_fig:
+            fig.subplots_adjust(right=0.78)
 
     # axis labels with % variance
     pc1_var = var_ratio[0] * 100 if len(var_ratio) > 0 else None
@@ -276,33 +304,38 @@ def plot_signatures(
     sharey: bool = False,
 ) -> plt.Figure:
     """
-    Plot per-signature barplots of feature loadings.
+    Plot per-signature bar plots of feature loadings.
+
+    This function visualizes the strongest features for each selected
+    signature as bar plots, using the signature profiles stored in
+    ``result.signatures``.
 
     Parameters
     ----------
     result : NMFResult
-        Output of `run_nmf`.
-
-    top_n : int, default 20
-        Number of top features (by loading) to display per signature.
-
-    signatures : list[int] or list[str] or None, default None
+        Output of :func:`run_nmf` containing the signature matrix.
+    top_n : int, optional
+        Number of top features (by absolute loading) to display per signature.
+        Default is 20.
+    signatures : list[int] or list[str] or None, optional
         Which signatures to plot.
-        - If None, plot all.
-        - If list[int], interpreted as 1-based indices (1..K).
-        - If list[str], must match column names in result.signatures.
 
-    figsize : (float, float) or None, default None
-        Figure size passed to matplotlib. If None, a default is chosen
+        - If ``None``, all signatures are plotted.
+        - If ``list[int]``, values are interpreted as 1-based indices
+          (``1 .. K``).
+        - If ``list[str]``, values must match column names in
+          ``result.signatures``.
+    figsize : tuple[float, float] or None, optional
+        Figure size passed to matplotlib. If ``None``, a default size is chosen
         based on the number of signatures.
-
-    sharey : bool, default False
-        If True, all subplots share the same y-axis.
+    sharey : bool, optional
+        If ``True``, all subplots share the same y-axis. Default is ``False``.
 
     Returns
     -------
-    fig : matplotlib.figure.Figure
-        The created figure.
+    matplotlib.figure.Figure
+        The created matplotlib figure containing the signature bar plots.
+
     """
     sig_df = result.signatures
 
@@ -383,7 +416,6 @@ def build_exposure_table(
 
     return df
 
-
 def plot_one_panel(
     df_panel: pd.DataFrame,
     title: str,
@@ -420,7 +452,7 @@ def plot_one_panel(
 
     if stacked:
         bottom = np.zeros(n_samples)
-        for col in sig_cols:  # <- consistent signature order everywhere
+        for col in sig_cols:  # consistent signature order everywhere
             vals = exp_panel[col].to_numpy()
             ax.bar(x, vals, bottom=bottom, label=str(col))
             bottom += vals
@@ -442,17 +474,33 @@ def plot_one_panel(
     if force_ylim_01:
         ax.set_ylim(0, 1)
 
-    # group labels at starts
+    # group labels: start text at the group midpoint (or at first bar if only one group)
     if n_samples > 0:
         starts = [0] + [i for i in range(1, n_samples) if group_labels[i] != group_labels[i - 1]]
-        ylim = ax.get_ylim()
-        for i in starts:
+        ends = [s - 1 for s in starts[1:]] + [n_samples - 1]
+        n_groups = len(starts)
+
+        for s, e in zip(starts, ends):
+            x_start = x[s] if n_groups == 1 else (x[s] + x[e]) / 2.0
+
             ax.text(
-                x[i], ylim[1], str(group_labels[i]), ha="center", va="bottom", fontsize="x-small"
+                x_start,
+                1.06,  # a bit higher than 1.02 to avoid title/legend collisions
+                str(group_labels[s]),
+                ha="left",      # start text at x_start
+                va="bottom",
+                rotation=30,
+                fontsize="x-small",
+                transform=ax.get_xaxis_transform(),  # x in data, y in axes coords
+                clip_on=False,
             )
+
+        # Reserve a bit of room at the top for the group labels
+        fig.subplots_adjust(top=0.85)
 
     fig.tight_layout()
     return fig
+
 
 
 def signature_sort_key(name: str) -> int:
@@ -469,13 +517,50 @@ def plot_exposures(
     plot: Literal["both", "absolute", "proportion"] = "both",
 ) -> dict[str, list[plt.Figure]]:
     """
-    Plot sample exposures, ensuring:
-      - sample order is identical across all panels/plots (absolute, proportion, single signature use the same rule)
-      - signature stacking/order is consistent (use exposures.columns order)
+    Plot sample exposures from an :class:`NMFResult`.
 
-    Expected:
-      result.exposures : DataFrame (index = samples, columns = signatures)
-      result.groups    : DataFrame with column 'group' (optional)
+    This function generates exposure visualizations while enforcing:
+
+    - Sample order is identical across all panels/plots (absolute, proportion,
+      and per-signature views use the same ordering rule).
+    - Signature stacking/order is consistent (uses ``result.exposures.columns``).
+
+    Expected inputs:
+
+    - ``result.exposures``: :class:`pandas.DataFrame` with samples as index and
+      signatures as columns.
+    - ``result.groups``: :class:`pandas.DataFrame` with a ``"group"`` column
+      (optional), used to determine sample ordering and/or grouping.
+
+    Parameters
+    ----------
+    result : NMFResult
+        Output of :func:`run_nmf` containing exposures and optional grouping
+        information.
+    stacked : bool, optional
+        If ``True``, plot stacked bar charts. If ``False``, plot grouped (side-by-side)
+        bars where applicable. Default is ``True``.
+    figsize : tuple[float, float] or None, optional
+        Figure size passed to matplotlib. If ``None``, a default size is chosen
+        based on the number of samples and signatures.
+    max_samples_per_fig : int or None, optional
+        Maximum number of samples to show per figure. If provided, samples are
+        split across multiple figures. If ``None``, all samples are plotted in a
+        single figure (may be large).
+    plot : {"both", "absolute", "proportion"}, optional
+        Which exposure views to generate:
+
+        - ``"absolute"``: plot raw exposure values.
+        - ``"proportion"``: plot exposures normalized to sum to 1 per sample.
+        - ``"both"``: generate both absolute and proportional plots.
+
+        Default is ``"both"``.
+
+    Returns
+    -------
+    dict[str, list[matplotlib.figure.Figure]]
+        Dictionary mapping plot type to a list of created figures. Keys depend on
+        ``plot`` (e.g. ``"absolute"``, ``"proportion"``).
     """
     exp = result.exposures
     if not isinstance(exp, pd.DataFrame):

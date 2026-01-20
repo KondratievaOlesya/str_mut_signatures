@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 as far as reasonably possible for a research codebase.
+
+## [2.0.0] - 2026-01-20
+
+### **Changed**
+
+* Updated STR feature construction logic:
+
+  * Repeat unit length is now controlled by a single flag (`ru_length`).
+  * Repeat unit content is optional and can be specified as either:
+
+    * `ru="class"` (base composition: AT_only / GC_only / mixed)
+    * `ru="ru"` (full repeat unit sequence).
+  * If `ru` is not specified, repeat unit content is not included in features.
+* Removed old combined `ru` modes (`length`, `AT`) in favor of a clearer, modular design.
+
+### **Improved**
+
+* Improved label placement and readability in exposure plots.
+* Group labels are now positioned more clearly, making multi-group plots easier to interpret.
+
+### **Documentation**
+
+* Updated README and CLI help text to reflect the new repeat unit options and feature naming scheme.
+
+
 ## [1.0.0] - 2025-12-22
 ### Added
 

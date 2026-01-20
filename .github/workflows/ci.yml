@@ -2,7 +2,6 @@ name: Python package
 
 on:
   - push
-  - pull_request
 
 jobs:
   build:
@@ -23,3 +22,12 @@ jobs:
         python -m pip install tox tox-gh-actions
     - name: Test with tox
       run: tox
+
+  # Upload coverage
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.12'
+      uses: codecov/codecov-action@v5
+      with:
+        files: coverage.xml
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
