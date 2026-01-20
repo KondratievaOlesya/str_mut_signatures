@@ -382,11 +382,17 @@ def parse_vcf_files(
 
 def save_counts_matrix(mutations_data: pd.DataFrame, output_csv: str | Path):
     """
-    Save the mutations data DataFrame to a CSV file.
+    Save a mutation counts matrix to a CSV file.
 
-    :param mutations_data: DataFrame containing mutation data.
-    :type mutations_data: pandas.DataFrame
-    :param output_csv: Path to the output CSV file.
-    :type output_csv: str or pathlib.Path
+    Parameters
+    ----------
+    mutations_data : pandas.DataFrame
+        DataFrame containing mutation count data to be written to disk.
+    output_csv : str or pathlib.Path
+        Path to the output CSV file.
+
+    Returns
+    -------
+    None
     """
     mutations_data.to_csv(output_csv, index=False)

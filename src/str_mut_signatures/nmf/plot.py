@@ -231,7 +231,6 @@ def plot_pca_samples(
     if is_continuous:
         # ---- continuous coloring ----
         cmap_name = cmap if cmap is not None else "viridis"
-        # ---- continuous coloring ----
         cmap_obj = plt.get_cmap(cmap_name)
         vmin = np.nanmin(values.to_numpy(dtype=float))
         vmax = np.nanmax(values.to_numpy(dtype=float))
