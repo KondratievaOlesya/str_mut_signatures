@@ -26,6 +26,7 @@ from .nmf.nmf import (
 
 class ValidationError(Exception):
     """Custom validation error for CLI argument checks."""
+
     pass
 
 
@@ -48,12 +49,12 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
 
   # 1) Extract somatic STR mutation counts from paired tumor–normal VCFs
-  str_mut_signatures extract \\
-      --vcf-dir data/vcfs/ \\
-      --out-matrix counts_len1.tsv \\
-      --ru length \\
-      --ref-length \\
-      --change
+  str_mut_signatures extract \
+    --vcf-dir data/vcfs \
+    --out-matrix counts_len.tsv \
+    --ru-length \
+    --ref-length \
+    --change
 
   # 2) Filter a count matrix (feature-level filtering)
   str_mut_signatures filter \\
@@ -77,7 +78,7 @@ Examples:
   str_mut_signatures extract \\
       --vcf-dir data/vcfs/ \\
       --out-matrix counts_len1.tsv \\
-      --ru length --ref-length --change \\
+      --ru-length --ref-length --change \\
       --verbose
         """,
     )
@@ -127,14 +128,21 @@ Examples:
     )
 
     extract_parser.add_argument(
+        "--ru-length",
+        action="store_true",
+        default=False,
+        help="Include repeat-unit length as LEN{len(motif)} in feature labels.",
+    )
+
+    extract_parser.add_argument(
         "--ru",
-        choices=["none", "length", "ru", "AT"],
-        default="length",
+        choices=["class", "ru"],
+        default=None,
         help=(
-            "How to use motif information in features: "
-            "'none' (ignore motif), 'length' (LEN1, LEN2, ...), "
-            "'ru' (full motif sequence), or 'AT' (AT-rich vs non-AT-rich). "
-            "Default: length"
+            "How to include repeat-unit content in feature labels: "
+            "'class' (base class AT/GC/MX) or "
+            "'ru' (full repeat-unit sequence). "
+            "If not specified, repeat-unit content is not included."
         ),
     )
 
@@ -332,15 +340,11 @@ def validate_args(args: argparse.Namespace) -> None:
     """Validate CLI arguments."""
     if args.command == "extract":
         if not os.path.isdir(args.vcf_dir):
-            raise ValidationError(
-                f"--vcf-dir not found or not a directory: {args.vcf_dir}"
-            )
+            raise ValidationError(f"--vcf-dir not found or not a directory: {args.vcf_dir}")
 
         out_parent = Path(args.out_matrix).resolve().parent
         if not out_parent.exists():
-            raise ValidationError(
-                f"Parent directory for --out-matrix not found: {out_parent}"
-            )
+            raise ValidationError(f"Parent directory for --out-matrix not found: {out_parent}")
 
     elif args.command == "filter":
         if not os.path.isfile(args.matrix):
@@ -348,12 +352,10 @@ def validate_args(args: argparse.Namespace) -> None:
 
         out_parent = Path(args.out_matrix).resolve().parent
         if not out_parent.exists():
-            raise ValidationError(
-                f"Parent directory for --out-matrix not found: {out_parent}"
-            )
+            raise ValidationError(f"Parent directory for --out-matrix not found: {out_parent}")
 
         if args.feature_method == "percentile" and not (0.0 <= args.feature_percentile <= 1.0):
-                raise ValidationError("--feature-percentile must be between 0 and 1.")
+            raise ValidationError("--feature-percentile must be between 0 and 1.")
 
     elif args.command == "nmf":
         if not os.path.isfile(args.matrix):
@@ -365,9 +367,7 @@ def validate_args(args: argparse.Namespace) -> None:
         outdir = Path(args.outdir)
         out_parent = outdir.resolve().parent
         if not out_parent.exists():
-            raise ValidationError(
-                f"Parent directory for --outdir not found: {out_parent}"
-            )
+            raise ValidationError(f"Parent directory for --outdir not found: {out_parent}")
 
     elif args.command == "project":
         if not os.path.isfile(args.matrix):
@@ -385,9 +385,8 @@ def validate_args(args: argparse.Namespace) -> None:
 
         out_parent = Path(args.out_exposures).resolve().parent
         if not out_parent.exists():
-            raise ValidationError(
-                f"Parent directory for --out-exposures not found: {out_parent}"
-            )
+            raise ValidationError(f"Parent directory for --out-exposures not found: {out_parent}")
+
 
 # ----------------------------------------------------------------------
 # Command runners
@@ -403,11 +402,11 @@ def run_extract_cli(args: argparse.Namespace, logger: logging.Logger) -> None:
         raise RuntimeError(f"No mutations parsed from directory: {args.vcf_dir}")
 
     logger.info("Building mutation count matrix...")
-    ru_arg = None if args.ru == "none" else args.ru
 
     matrix = build_mutation_matrix(
         mutations,
-        ru=ru_arg,
+        ru_length=args.ru_length,
+        ru=args.ru,  # None | "class" | "ru"
         ref_length=args.ref_length,
         change=args.change,
     )
@@ -461,6 +460,7 @@ def run_filter_cli(args: argparse.Namespace, logger: logging.Logger) -> None:
 
     logger.info("Writing filtered matrix to: %s", args.out_matrix)
     filtered.to_csv(args.out_matrix, sep="\t")
+
 
 def run_nmf_cli(args: argparse.Namespace, logger: logging.Logger) -> None:
     """Run the NMF workflow."""
@@ -521,7 +521,11 @@ def run_project_cli(args: argparse.Namespace, logger: logging.Logger) -> None:
     logger.info("Loading NMF result from: %s", nmf_dir)
     nmf_res = load_nmf_result(nmf_dir)
 
-    logger.info("Projecting %d new samples onto %d signatures...", new_matrix.shape[0], nmf_res.signatures.shape[1])
+    logger.info(
+        "Projecting %d new samples onto %d signatures...",
+        new_matrix.shape[0],
+        nmf_res.signatures.shape[1],
+    )
 
     exposures_new = project_onto_signatures(
         new_matrix=new_matrix,

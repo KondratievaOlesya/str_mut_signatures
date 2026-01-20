@@ -11,3 +11,4 @@ src/str_mut_signatures.egg-info
 src/str_mut_signatures/nmf/__pycache__
 src/str_mut_signatures/extract_tally/__pycache__
 str_mut_test_venv/
+example_output

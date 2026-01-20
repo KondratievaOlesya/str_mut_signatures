@@ -11,13 +11,25 @@ from .validate import validate_vcf
 
 def normalize_motif(raw_motif: str | None) -> str:
     """
-    Normalize motif string:
+    Normalize motif string.
 
-    - convert to uppercase
-    - remove spaces and non-letter characters
-    - canonicalize using trtools.utils.utils.GetCanonicalMotif
+    Normalization steps:
 
-    Returns empty string if nothing usable is left.
+    - Convert to uppercase
+    - Remove spaces and non-letter characters
+    - Canonicalize using ``trtools.utils.utils.GetCanonicalMotif``
+
+    Returns an empty string if nothing usable remains.
+
+    Parameters
+    ----------
+    raw_motif : str or None
+        Input motif string to normalize. If ``None``, an empty string is returned.
+
+    Returns
+    -------
+    str
+        Normalized canonical motif, or an empty string if invalid.
     """
     if raw_motif is None or pd.isna(raw_motif):
         return ""
@@ -32,6 +44,7 @@ def normalize_motif(raw_motif: str | None) -> str:
     canonical = GetCanonicalMotif(cleaned)
     return canonical
 
+
 def parse_info(info_field: str) -> dict:
     info = {}
     for item in info_field.split(";"):
@@ -43,11 +56,25 @@ def parse_info(info_field: str) -> dict:
 
 def parse_copy_number(cn_str: str):
     """
-    Parse copy-number field (REPCN / REPLEN) like "10,11" into two alleles (a, b).
+    Parse copy-number field (``REPCN`` / ``REPLEN``) into two alleles.
 
-    - If single value: treat as homozygous (a == b).
-    - If two values: return them as-is.
-    - If more than two: return '.', '.' for now (caller can skip).
+    The input is expected to be a comma-separated string, e.g. ``"10,11"``.
+
+    Rules:
+
+    - If a single value is provided, it is treated as homozygous (``a == b``).
+    - If two values are provided, they are returned as-is.
+    - If more than two values are provided, returns ``(".", ".")`` (caller can skip).
+
+    Parameters
+    ----------
+    cn_str : str
+        Copy-number string to parse (e.g. ``"10,11"``).
+
+    Returns
+    -------
+    tuple[str, str]
+        Two allele values as strings.
     """
     parts = cn_str.split(",")
     if len(parts) == 2:
@@ -72,27 +99,43 @@ def process_vcf_to_rows(
     filter_by_perfect: bool = True,
 ):
     """
-    Parse a single STR-annotated VCF and return a list of dict rows.
+    Parse a single STR-annotated VCF into row dictionaries.
 
     Supports:
-    - GangSTR: uses FORMAT/REPCN as copy number
-    - conSTRain: uses FORMAT/REPLEN as copy number
-    - VCF annotated with strvcf_annotator (INFO/RU, INFO/REF, FORMAT/REPCN)
+
+    - GangSTR: uses ``FORMAT/REPCN`` as copy number
+    - conSTRain: uses ``FORMAT/REPLEN`` as copy number
+    - VCF annotated with ``strvcf_annotator`` (``INFO/RU``, ``INFO/REF``, ``FORMAT/REPCN``)
 
     Filtering options
     -----------------
-    filter_by_pass:
-        If True (default), keep only records with FILTER == "PASS".
-        If False, ignore the FILTER field.
-    filter_by_perfect:
-        If True (default), and INFO/PERFECT is present, keep only PERFECT != FALSE.
-        (i.e. skip variants where PERFECT == "FALSE").
-        If False, ignore the PERFECT flag completely.
+    filter_by_pass
+        If ``True`` (default), keep only records with ``FILTER == "PASS"``.
+        If ``False``, ignore the ``FILTER`` field.
+    filter_by_perfect
+        If ``True`` (default), and ``INFO/PERFECT`` is present, keep only records
+        where ``PERFECT != "FALSE"`` (i.e. skip variants where ``PERFECT == "FALSE"``).
+        If ``False``, ignore the ``PERFECT`` flag completely.
 
-    Assumptions after validation:
-    - FIRST sample column after FORMAT = NORMAL (index 9 in standard VCF).
-    - SECOND sample column after FORMAT = TUMOR (index 10).
-    - STR annotations present in INFO/FORMAT.
+    Assumptions after validation
+    ----------------------------
+    - First sample column after ``FORMAT`` is NORMAL (index 9 in standard VCF).
+    - Second sample column after ``FORMAT`` is TUMOR (index 10).
+    - STR annotations are present in ``INFO`` / ``FORMAT``.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the STR-annotated VCF file.
+    filter_by_pass : bool, optional
+        Whether to keep only records with ``FILTER == "PASS"``.
+    filter_by_perfect : bool, optional
+        Whether to filter by ``INFO/PERFECT`` when present.
+
+    Returns
+    -------
+    list[dict]
+        List of dictionaries, one per parsed STR record.
     """
     path = Path(path)
 
@@ -193,22 +236,24 @@ def process_vcf_to_rows(
             if format_fields is None:
                 format_fields = cols[8].split(":")
 
-            def get_copy_number(sample_str: str):
-                values = sample_str.split(":")
-                fmt = dict(zip(format_fields, values))
-                return parse_copy_number(fmt.get(cn_field, ".,."))
-
             try:
                 normal_sample = cols[normal_idx]
                 tumor_sample = cols[tumor_idx]
-            except IndexError:
+            except IndexError as err:
                 raise ValueError(
                     f"VCF '{path}' does not contain expected normal/tumor sample "
                     f"columns at indices 9 and 10."
-                )
+                ) from err
 
-            n_a, n_b = get_copy_number(normal_sample)
-            t_a, t_b = get_copy_number(tumor_sample)
+            # parse NORMAL copy numbers
+            normal_values = normal_sample.split(":")
+            normal_fmt = dict(zip(format_fields, normal_values))
+            n_a, n_b = parse_copy_number(normal_fmt.get(cn_field, ".,."))
+
+            # parse TUMOR copy numbers
+            tumor_values = tumor_sample.split(":")
+            tumor_fmt = dict(zip(format_fields, tumor_values))
+            t_a, t_b = parse_copy_number(tumor_fmt.get(cn_field, ".,."))
 
             # Require numeric copy numbers for all alleles; otherwise skip variant
             if not (n_a.isnumeric() and n_b.isnumeric() and t_a.isnumeric() and t_b.isnumeric()):
@@ -260,31 +305,40 @@ def parse_vcf_files(
     filter_by_perfect: bool = True,
 ) -> pd.DataFrame:
     """
-    Process all VCF(.gz) files in a directory into a single DataFrame.
+    Process all VCF (``.vcf`` / ``.vcf.gz``) files in a directory into a DataFrame.
 
-    Supports GangSTR and conSTRain STR-annotated VCFs, as well as
-    VCFs annotated with `strvcf_annotator`.
+    Supports GangSTR and conSTRain STR-annotated VCFs, as well as VCFs annotated
+    with ``strvcf_annotator``.
 
     If a file causes an error, it is skipped and a message is printed.
 
     Parameters
     ----------
-    input_dir:
-        Directory containing .vcf or .vcf.gz files.
-    filter_by_pass:
-        If True, keep only records with FILTER == "PASS".
-    filter_by_perfect:
-        If True, keep only records with INFO/PERFECT != FALSE (when present).
+    input_dir : str or pathlib.Path
+        Directory containing ``.vcf`` or ``.vcf.gz`` files.
+    filter_by_pass : bool, optional
+        If ``True``, keep only records with ``FILTER == "PASS"``.
+    filter_by_perfect : bool, optional
+        If ``True``, keep only records with ``INFO/PERFECT != "FALSE"`` when present.
 
     Returns
     -------
     pandas.DataFrame
+        Parsed STR records concatenated across all input files.
+
         Columns:
-        ['sample', 'tmp_id',
-         'tumor_allele_a', 'tumor_allele_b',
-         'normal_allele_a', 'normal_allele_b',
-         'end', 'period', 'ref', 'motif',
-         'genotype_separator']
+
+        - ``sample``
+        - ``tmp_id``
+        - ``tumor_allele_a``
+        - ``tumor_allele_b``
+        - ``normal_allele_a``
+        - ``normal_allele_b``
+        - ``end``
+        - ``period``
+        - ``ref``
+        - ``motif``
+        - ``genotype_separator``
     """
     input_dir = Path(input_dir)
     all_rows: list[dict] = []
@@ -327,4 +381,18 @@ def parse_vcf_files(
 
 
 def save_counts_matrix(mutations_data: pd.DataFrame, output_csv: str | Path):
+    """
+    Save a mutation counts matrix to a CSV file.
+
+    Parameters
+    ----------
+    mutations_data : pandas.DataFrame
+        DataFrame containing mutation count data to be written to disk.
+    output_csv : str or pathlib.Path
+        Path to the output CSV file.
+
+    Returns
+    -------
+    None
+    """
     mutations_data.to_csv(output_csv, index=False)

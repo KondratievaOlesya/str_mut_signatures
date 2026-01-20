@@ -9,7 +9,32 @@ import pandas as pd
 class FilterSummary(NamedTuple):
     """
     Small structured summary of what was filtered.
+
+    Parameters
+    ----------
+    feature_stats : pandas.DataFrame
+        Per-feature filtering statistics.
+    sample_stats : pandas.DataFrame
+        Per-sample filtering statistics.
+    feature_threshold_used : int or None
+        Threshold applied for feature filtering, or ``None`` if no feature-level
+        threshold was applied.
+    sample_threshold_used : int or None
+        Threshold applied for sample filtering, or ``None`` if no sample-level
+        threshold was applied.
+
+    Attributes
+    ----------
+    feature_stats : pandas.DataFrame
+        Per-feature filtering statistics.
+    sample_stats : pandas.DataFrame
+        Per-sample filtering statistics.
+    feature_threshold_used : int or None
+        Feature-level threshold actually used.
+    sample_threshold_used : int or None
+        Sample-level threshold actually used.
     """
+
     feature_stats: pd.DataFrame
     sample_stats: pd.DataFrame
     feature_threshold_used: int | None
@@ -23,10 +48,21 @@ def compute_feature_stats(matrix: pd.DataFrame) -> pd.DataFrame:
     """
     Compute per-feature (column) statistics.
 
-    Returns a DataFrame indexed by feature name with columns:
-      - total_count          : sum over samples
-      - n_samples_nonzero    : # samples where feature count > 0
-      - mean_per_nonzero     : mean count among samples where feature > 0
+    The returned DataFrame is indexed by feature name and contains:
+
+    - ``total_count``: sum over samples
+    - ``n_samples_nonzero``: number of samples where feature count > 0
+    - ``mean_per_nonzero``: mean count among samples where feature count > 0
+
+    Parameters
+    ----------
+    matrix : pandas.DataFrame
+        Input matrix with samples as rows and features as columns.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Per-feature summary statistics indexed by feature name.
     """
     totals = matrix.sum(axis=0)
     nonzero = (matrix > 0).sum(axis=0)
@@ -47,9 +83,20 @@ def compute_sample_stats(matrix: pd.DataFrame) -> pd.DataFrame:
     """
     Compute per-sample (row) statistics.
 
-    Returns a DataFrame indexed by sample ID with columns:
-      - total_count          : sum over all features
-      - n_features_nonzero   : # features with count > 0
+    The returned DataFrame is indexed by sample identifier and contains:
+
+    - ``total_count``: sum over all features
+    - ``n_features_nonzero``: number of features with count > 0
+
+    Parameters
+    ----------
+    matrix : pandas.DataFrame
+        Input matrix with samples as rows and features as columns.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Per-sample summary statistics indexed by sample ID.
     """
     totals = matrix.sum(axis=1)
     nonzero = (matrix > 0).sum(axis=1)
@@ -65,16 +112,25 @@ def compute_sample_stats(matrix: pd.DataFrame) -> pd.DataFrame:
 
 def elbow_threshold_from_counts(counts: np.ndarray) -> int:
     """
-    Simple 'elbow' heuristic for a descending-sorted vector of counts.
+    Estimate a threshold using a simple elbow heuristic.
 
     Idea:
-      - Sort feature totals descending.
-      - Consider points (i, count_i) in 2D.
-      - Draw a line between first and last point.
-      - Find the point with maximum distance from this line (the 'elbow').
-      - Use its y-value as the threshold.
 
-    Returns an integer threshold (>= 0).
+    - Sort counts descending
+    - Consider points ``(i, count_i)`` in 2D
+    - Draw a line between the first and last points
+    - Find the point with maximum distance from this line (the "elbow")
+    - Use its y-value as the threshold
+
+    Parameters
+    ----------
+    counts : numpy.ndarray
+        One-dimensional array of non-negative counts.
+
+    Returns
+    -------
+    int
+        Estimated threshold value (>= 0).
     """
     counts = np.asarray(counts, dtype=float)
     if counts.size == 0:
@@ -121,41 +177,42 @@ def filter_mutation_matrix(
     min_sample_total: int | None = 0,
 ) -> tuple[pd.DataFrame, FilterSummary]:
     """
-    Filter a mutation count matrix (samples x features) based on simple metrics.
+    Filter a mutation count matrix (samples × features) based on simple metrics.
 
     Parameters
     ----------
-    matrix :
-        pandas DataFrame with samples as rows and mutation features as columns.
+    matrix : pandas.DataFrame
+        Mutation count matrix with samples as rows and mutation features as columns.
 
-    feature_method : {"manual", "elbow", "percentile"}, default "manual"
-        Strategy for choosing a feature-level total-count threshold:
-        - "manual":
-            Use `min_feature_total` directly.
-        - "elbow":
-            Ignore `min_feature_total` and use an 'elbow' heuristic based on
-            the distribution of feature total counts.
-        - "percentile":
-            Ignore `min_feature_total` and keep features whose total count is
+    feature_method : {"manual", "elbow", "percentile"}, optional
+        Strategy for choosing a feature-level total-count threshold.
+
+        - ``"manual"``:
+            Use ``min_feature_total`` directly.
+        - ``"elbow"``:
+            Ignore ``min_feature_total`` and use an elbow heuristic based on the
+            distribution of feature total counts.
+        - ``"percentile"``:
+            Ignore ``min_feature_total`` and keep features whose total count is
             >= the given percentile of the distribution.
 
-    min_feature_total : int or None, default 10
+    min_feature_total : int or None, optional
         Minimal total count across all samples for a feature to be kept
-        (only used when feature_method="manual").
-        If None, no total-count threshold is applied.
+        (only used when ``feature_method="manual"``). If ``None``, no total-count
+        threshold is applied.
 
-    min_samples_with_feature : int or None, default 3
+    min_samples_with_feature : int or None, optional
         Minimal number of samples in which a feature must be non-zero.
-        If None, no prevalence threshold is applied.
+        If ``None``, no prevalence threshold is applied.
 
-    feature_percentile : float, default 0.95
-        When feature_method="percentile", features with total_count >=
-        the `feature_percentile` quantile of the distribution are kept.
+    feature_percentile : float, optional
+        When ``feature_method="percentile"``, features with ``total_count`` >= the
+        ``feature_percentile`` quantile of the distribution are kept.
         Must be between 0 and 1.
 
-    min_sample_total : int or None, default 0
+    min_sample_total : int or None, optional
         Minimal total count per sample to be kept.
-        If None, no sample-level filter is applied.
+        If ``None``, no sample-level filter is applied.
 
     Returns
     -------
@@ -163,11 +220,21 @@ def filter_mutation_matrix(
         Matrix with filtered samples/features.
 
     summary : FilterSummary
-        Named tuple containing:
-          - feature_stats        : DataFrame of per-feature metrics
-          - sample_stats         : DataFrame of per-sample metrics
-          - feature_threshold_used: int or None
-          - sample_threshold_used : int or None
+        Structured summary containing:
+
+        - ``feature_stats``: DataFrame of per-feature metrics
+        - ``sample_stats``: DataFrame of per-sample metrics
+        - ``feature_threshold_used``: int or None
+        - ``sample_threshold_used``: int or None
+
+    Raises
+    ------
+    ValueError
+        If ``feature_method`` is not one of ``"manual"``, ``"elbow"``, or
+        ``"percentile"``.
+    ValueError
+        If ``feature_method="percentile"`` and ``feature_percentile`` is not in
+        the interval ``[0, 1]``.
     """
     if not isinstance(matrix, pd.DataFrame):
         raise TypeError("matrix must be a pandas.DataFrame")
@@ -211,8 +278,12 @@ def filter_mutation_matrix(
     filtered = matrix.loc[sample_mask, feature_mask]
 
     # Recompute stats for filtered matrix (optional but nice)
-    feature_stats_filtered = compute_feature_stats(filtered) if not filtered.empty else feature_stats.iloc[0:0]
-    sample_stats_filtered = compute_sample_stats(filtered) if not filtered.empty else sample_stats.iloc[0:0]
+    feature_stats_filtered = (
+        compute_feature_stats(filtered) if not filtered.empty else feature_stats.iloc[0:0]
+    )
+    sample_stats_filtered = (
+        compute_sample_stats(filtered) if not filtered.empty else sample_stats.iloc[0:0]
+    )
 
     summary = FilterSummary(
         feature_stats=feature_stats_filtered,

@@ -2,6 +2,17 @@
 str_mut_signatures
 ==================
 
+.. image:: https://img.shields.io/badge/docs-GitHub%20Pages-blue
+   :target: https://acg-team.github.io/str_mut_signatures/
+
+.. image:: https://github.com/acg-team/str_mut_signatures/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/acg-team/str_mut_signatures/actions/workflows/ci.yml
+   :alt: Tests
+
+.. image:: https://codecov.io/gh/acg-team/str_mut_signatures/branch/main/graph/badge.svg
+   :target: https://codecov.io/gh/acg-team/str_mut_signatures
+   :alt: Coverage
+
 STR Mutation Signature Analysis.
 
 Python package for analysis of Short Tandem Repeat (STR) mutation signatures from VCF files.
@@ -85,18 +96,20 @@ Basic pipeline
     mutations = parse_vcf_files("vcf_directory/")
 
     # 2) Build a mutation count matrix
+    # ru_length:
+    #   include repeat-unit length (LEN{len(motif)})
     # ru:
     #   None     -> ignore motif
-    #   "length" -> use only motif length (LEN1, LEN2, ...)
     #   "ru"     -> use full repeat unit sequence (e.g. AT, AAT)
-    #   "AT"     -> AT-rich vs non-AT-rich classification
+    #   "class"  -> AT-only, GC-only or mixed classification
     # ref_length:
     #   include reference repeat length as a feature component
     # change:
     #   include tumor–normal repeat-length change
     matrix = build_mutation_matrix(
         mutations,
-        ru="length",
+        ru_length=True,
+        ru="class",
         ref_length=True,
         change=True,
     )
@@ -165,7 +178,8 @@ Command Line
     str_mut_signatures extract \
         --vcf-dir data/vcfs/ \
         --out-matrix counts_raw.tsv \
-        --ru length \
+        --ru-length \
+        --ru class \
         --ref-length \
         --change
 
@@ -176,11 +190,12 @@ This produces a count matrix (TSV) with:
 
 .. code-block:: text
 
-    LEN{motif_length}_{ref_length}_{change}
+    LEN{motif_length}_{motif class}_{ref_length}_{change}
 
-For example: ``LEN1_10_+1`` means:
+For example: ``LEN1_AT_only_10_+1`` means:
 
 - motif length = 1 bp
+- motif base class = AT-only
 - reference repeat length = 10 copies
 - tumor has +1 copy relative to normal.
 
@@ -313,106 +328,90 @@ For details see: `strvcf_annotator  <https://github.com/acg-team/strvcf_annotato
 Matrix construction
 ===================
 
-``build_mutation_matrix`` provides a flexible way to define the feature space
-(columns) using simple flags.
+``build_mutation_matrix`` defines feature keys using independent options.
 
 Core components
 ---------------
 
-Given:
+Each feature key can include:
 
-- ``RU``: repeat unit sequence (e.g. ``A``, ``AT``, ``AAT``)
-- ``len(RU)``: motif length
-- ``REF``: reference repeat count
-- ``change``: tumor–normal repeat-length change at that locus
+- repeat-unit length (``LEN{len(motif)}``) via ``ru_length``
+- repeat-unit content via ``ru`` (optional)
+- reference repeat count via ``ref_length``
+- tumor–normal delta via ``change``
 
-you can select:
+Repeat-unit content modes
+-------------------------
 
-- ``ru``:
+- ``ru`` omitted (``ru=None``):
+  no repeat-unit content is included.
 
-  - ``None``:
+- ``ru="class"``:
+  base composition class is used:
 
-    - Do not use motif information.
+  - ``AT_only``: motif contains only A/T
+  - ``GC_only``: motif contains only G/C
+  - ``mixed``: mixed A/T and G/C
 
-  - ``"length"``:
-
-    - Use only motif length.
-    - Features start with ``LEN{motif_length}``.
-    - Example: ``LEN1_10_+1`` for motif length 1, REF=10, change=+1.
-
-  - ``"ru"``:
-
-    - Use full repeat unit sequence.
-    - Example: ``A_10_+1``, ``AT_20_-2``.
-
-  - ``"AT"``:
-
-    - Collapse motifs into AT-rich vs non-AT-rich:
-    - ``AT_rich``: motif consists only of ``A`` and ``T``.
-    - ``non_AT_rich``: motif contains any ``C`` or ``G``.
-
-- ``ref_length`` (bool):
-
-  - If ``True``, include the reference repeat length as part of the feature key.
-
-- ``change`` (bool):
-
-  - If ``True``, include tumor–normal change as part of the feature key.
-  - Only somatic events (non-zero change) are counted.
-  - If ``False``, no change term is added and loci are not filtered by change.
+- ``ru="ru"``:
+  full repeat-unit sequence is used (e.g. ``A``, ``AT``, ``AAT``).
 
 Examples
 --------
 
-1. Motif length + ref length + somatic change:
+1. Motif length + base class + ref length + somatic change:
 
 .. code-block:: python
 
     m = build_mutation_matrix(
         mutations,
-        ru="length",
+        ru_length=True,
+        ru="class",
         ref_length=True,
         change=True,
     )
-    # Columns: LEN{motif_length}_{ref_length}_{change}
-    # e.g. LEN1_10_+1
+    # e.g. LEN2_AT_only_15_+1
 
-2. Full motif + change only:
+2. Full motif + ref length + somatic change:
 
 .. code-block:: python
 
     m = build_mutation_matrix(
         mutations,
+        ru_length=False,
         ru="ru",
-        ref_length=False,
-        change=True,
-    )
-    # Columns: {RU}_{change}
-    # e.g. AT_+2
-
-3. AT-rich vs non-AT-rich, with ref length and change:
-
-.. code-block:: python
-
-    m = build_mutation_matrix(
-        mutations,
-        ru="AT",
         ref_length=True,
         change=True,
     )
-    # Columns: AT_rich_10_+1, non_AT_rich_20_-2, ...
+    # e.g. AT_15_+1
 
-4. Motif length only (no change, e.g. for presence/absence-style summaries):
+3. Length only:
 
 .. code-block:: python
 
     m = build_mutation_matrix(
         mutations,
-        ru="length",
+        ru_length=True,
+        ru=None,
         ref_length=False,
+        change=True,
+    )
+    # e.g. LEN1_+1
+
+4. Presence/absence-style summaries (no delta term):
+
+.. code-block:: python
+
+    m = build_mutation_matrix(
+        mutations,
+        ru_length=True,
+        ru=None,
+        ref_length=True,
         change=False,
     )
-    # Columns: LEN1, LEN2, ...
+    # e.g. LEN1_10
+
+
 
 
 Filtering mutation matrices
@@ -660,19 +659,19 @@ Extract
     str_mut_signatures extract \
         --vcf-dir PATH \
         --out-matrix OUTPUT.tsv \
-        [--ru {none,length,ru,AT}] \
+        [--ru-length] \
+        [--ru {class,ru}] \
         [--ref-length] \
         [--change]
 
 Key options:
 
 - ``--vcf-dir``: Directory with STR-annotated, paired tumor–normal VCF files.
+- ``--ru-length``: include motif length (``LEN{len(motif)}``)
 - ``--ru``:
 
-  - ``none``: ignore motif.
-  - ``length``: use motif length (LEN1, LEN2, ...).
   - ``ru``: use full motif sequence.
-  - ``AT``: use AT-rich vs non-AT-rich labeling.
+  - ``class``: use AT-only, GC-only or mixed labeling.
 
 - ``--ref-length``: Include reference repeat length in feature labels.
 - ``--change``: Encode tumor–normal repeat-length change and restrict to somatic events.

@@ -71,6 +71,7 @@ def build_hash_manifest(root: str | Path) -> str:
 # Core pipeline helper
 # ----------------------------------------------------------------------
 
+
 def to_figures(obj):
     """
     Normalize various possible return types from plotting functions to
@@ -122,7 +123,8 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     # ------------------------------------------------------------------
     matrix = build_mutation_matrix(
         mutations,
-        ru="length",
+        ru_length=True,
+        ru=None,
         ref_length=True,
         change=True,
     )
@@ -186,23 +188,20 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     # ------------------------------------------------------------------
     sig_obj = plot_signatures(nmf_res, top_n=10)
     exp_obj = plot_exposures(nmf_res, max_samples_per_fig=200)
-    coords, var_ratio, pca_obj = plot_pca_samples(
-        nmf_res,
-        title="PCA of exposures"
-    )
+    coords, var_ratio, pca_obj = plot_pca_samples(nmf_res, title="PCA of exposures")
 
     # Basic PCA checks unchanged
     assert coords.shape[1] == 2
     assert len(var_ratio) == 2
     coords.to_csv(pipeline_dir / "pca_coords.tsv", sep="\t")
-    pd.Series(var_ratio, index=[f"PC{i+1}" for i in range(len(var_ratio))]).to_csv(
+    pd.Series(var_ratio, index=[f"PC{i + 1}" for i in range(len(var_ratio))]).to_csv(
         pipeline_dir / "pca_explained_variance.tsv",
         sep="\t",
     )
 
     # Normalize to lists of Figures
     sig_figs = to_figures(sig_obj)
-    exp_figs = to_figures(exp_obj['absolute'])
+    exp_figs = to_figures(exp_obj["absolute"])
     pca_figs = to_figures(pca_obj)
 
     # Save only the first figure of each type for the integration test
@@ -259,7 +258,8 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
 
     new_matrix = build_mutation_matrix(
         new_mut_df,
-        ru="length",
+        ru_length=True,
+        ru=None,
         ref_length=True,
         change=True,
     )
@@ -281,6 +281,7 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     exposures_new.to_csv(pipeline_dir / "new_exposures_single_vcf.tsv", sep="\t")
 
     return pipeline_dir
+
 
 class TestFullPipelineIntegration:
     @pytest.mark.integration

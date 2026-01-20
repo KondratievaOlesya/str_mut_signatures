@@ -10,3 +10,7 @@ black
 flake8
 twine
 build
+sphinx
+sphinx-rtd-theme
+myst-parser
+sphinx-argparse
