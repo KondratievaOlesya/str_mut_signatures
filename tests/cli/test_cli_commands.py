@@ -124,7 +124,7 @@ class TestCLIBasicUsage:
         """Test --version flag."""
         result = subprocess.run(["str_mut_signatures", "--version"], capture_output=True, text=True)
         assert result.returncode == 0
-        assert "2.0.0" in result.stdout
+        assert "2.0.1" in result.stdout
 
     def test_no_arguments_fails(self):
         """Test that running without arguments fails."""
