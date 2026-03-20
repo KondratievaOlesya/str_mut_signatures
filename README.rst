@@ -93,7 +93,7 @@ Basic pipeline
     )
 
     # 1) Parse annotated paired tumor–normal VCF files into a long table
-    mutations = parse_vcf_files("vcf_directory/")
+    mutations = parse_vcf_files("vcf_directory/", n_jobs=4) # n_jobs for parallel processing
 
     # 2) Build a mutation count matrix
     # ru_length:
@@ -181,7 +181,8 @@ Command Line
         --ru-length \
         --ru class \
         --ref-length \
-        --change
+        --change \
+        --n_jobs 4
 
 This produces a count matrix (TSV) with:
 

@@ -158,6 +158,13 @@ Examples:
         help="Encode tumor–normal repeat-length change and restrict to somatic events.",
     )
 
+    extract_parser.add_argument(
+        "--n_jobs",
+        type=int,
+        default=None,
+        help="Number of parallel jobs to use for processing VCF files.",
+    )
+
     # ------------------------------------------------------------------
     # filter subcommand
     # ------------------------------------------------------------------
@@ -396,7 +403,7 @@ def validate_args(args: argparse.Namespace) -> None:
 def run_extract_cli(args: argparse.Namespace, logger: logging.Logger) -> None:
     """Run the extract workflow."""
     logger.info("Loading VCFs from directory: %s", args.vcf_dir)
-    mutations = parse_vcf_files(args.vcf_dir)
+    mutations = parse_vcf_files(args.vcf_dir, n_jobs=args.n_jobs)
 
     if mutations.empty:
         raise RuntimeError(f"No mutations parsed from directory: {args.vcf_dir}")

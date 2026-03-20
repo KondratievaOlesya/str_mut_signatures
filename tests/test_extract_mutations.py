@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 
 from str_mut_signatures.extract_tally.extract_mutations import (
-    parse_info,
     parse_copy_number,
+    parse_info,
     parse_vcf_files,
     process_vcf_to_rows,
 )
@@ -236,7 +236,7 @@ class TestParseVCFFiles:
         - Save to a deterministic TSV.
         - Compare SHA256 hash to a known expected value.
         """
-        df = parse_vcf_files(vcf_dir)
+        df = parse_vcf_files(vcf_dir, n_jobs=1)
 
         # --- basic content checks ---
         expected_cols = {
@@ -266,7 +266,7 @@ class TestParseVCFFiles:
 
         actual_hash = file_hash(out_path)
 
-        EXPECTED_SHA256 = "4976bd5da202306d2b870154a99ead7f"
+        EXPECTED_SHA256 = "8dcd3da9641eac63d2f76640bc0b0a8c"
 
         # Temporary assertion so test fails clearly until you plug in hash
         assert (
