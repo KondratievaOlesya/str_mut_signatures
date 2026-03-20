@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>str_mut_signatures documentation &mdash; str_mut_signatures 2.0.0 documentation</title>
+  <title>str_mut_signatures documentation &mdash; str_mut_signatures 2.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=51b770b3"></script>
+      <script src="_static/documentation_options.js?v=f5cff4aa"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -144,7 +144,7 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <span class="p">)</span>
 
 <span class="c1"># 1) Parse annotated paired tumor–normal VCF files into a long table</span>
-<span class="n">mutations</span> <span class="o">=</span> <span class="n">parse_vcf_files</span><span class="p">(</span><span class="s2">&quot;vcf_directory/&quot;</span><span class="p">)</span>
+<span class="n">mutations</span> <span class="o">=</span> <span class="n">parse_vcf_files</span><span class="p">(</span><span class="s2">&quot;vcf_directory/&quot;</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="c1"># n_jobs for parallel processing</span>
 
 <span class="c1"># 2) Build a mutation count matrix</span>
 <span class="c1"># ru_length:</span>
@@ -229,7 +229,8 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <span class="w">    </span>--ru-length<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--ru<span class="w"> </span>class<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--ref-length<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--change
+<span class="w">    </span>--change<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--n-jobs<span class="w"> </span><span class="m">4</span>
 </pre></div>
 </div>
 <p>This produces a count matrix (TSV) with:</p>

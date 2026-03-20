@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>str_mut_signatures.extract_tally.tally &mdash; str_mut_signatures 2.0.0 documentation</title>
+  <title>str_mut_signatures.extract_tally.tally &mdash; str_mut_signatures 2.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../../_static/documentation_options.js?v=f5cff4aa"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -74,16 +74,16 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
 <span class="n">RuMode</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;class&quot;</span><span class="p">,</span> <span class="s2">&quot;ru&quot;</span><span class="p">]</span>  <span class="c1"># none, base-class, exact RU</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">validate_mutations_data</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_mutations_data</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Validate the input DataFrame and return:</span>
 <span class="sd">      - motif column name (&#39;motif&#39; or &#39;RU&#39;)</span>
-<span class="sd">      - whether genotype_separator column is present</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;mutations_data must be a pandas.DataFrame&quot;</span><span class="p">)</span>
@@ -106,88 +106,11 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;mutations_data must contain &#39;motif&#39; or &#39;RU&#39; column for repeat unit.&quot;</span><span class="p">)</span>
 
-    <span class="n">has_genotype_sep</span> <span class="o">=</span> <span class="s2">&quot;genotype_separator&quot;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span>
-
-    <span class="k">return</span> <span class="n">motif_col</span><span class="p">,</span> <span class="n">has_genotype_sep</span>
+    <span class="k">return</span> <span class="n">motif_col</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">is_phased</span><span class="p">(</span><span class="n">genotype_separator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Return True if genotype separator indicates phased genotypes (&#39;|&#39;).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">genotype_separator</span> <span class="o">==</span> <span class="s2">&quot;|&quot;</span>
 
-
-<span class="k">def</span><span class="w"> </span><span class="nf">compute_changes_for_row</span><span class="p">(</span><span class="n">row</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compute allele-level or combined tumor–normal changes for a single row.</span>
-
-<span class="sd">    - If phased (GT uses &#39;|&#39;):</span>
-<span class="sd">        change_a = tumor_allele_a - normal_allele_a</span>
-<span class="sd">        change_b = tumor_allele_b - normal_allele_b</span>
-<span class="sd">        ref_a    = normal_allele_a</span>
-<span class="sd">        ref_b    = normal_allele_b</span>
-
-<span class="sd">    - If unphased or no phasing info:</span>
-<span class="sd">        We only track a single combined change:</span>
-<span class="sd">            total_normal = normal_allele_a + normal_allele_b</span>
-<span class="sd">            total_tumor  = tumor_allele_a + tumor_allele_b</span>
-<span class="sd">            change_total = total_tumor - total_normal</span>
-
-<span class="sd">        This is stored in:</span>
-<span class="sd">            change_a = change_total</span>
-<span class="sd">            ref_a    = total_normal</span>
-<span class="sd">            change_b = NA</span>
-<span class="sd">            ref_b    = NA</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Extract genotype separator if present</span>
-    <span class="n">genotype_separator</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;genotype_separator&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">phased</span> <span class="o">=</span> <span class="n">is_phased</span><span class="p">(</span><span class="n">genotype_separator</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">n_a</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;normal_allele_a&quot;</span><span class="p">])</span>
-        <span class="n">n_b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;normal_allele_b&quot;</span><span class="p">])</span>
-        <span class="n">t_a</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;tumor_allele_a&quot;</span><span class="p">])</span>
-        <span class="n">t_b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;tumor_allele_b&quot;</span><span class="p">])</span>
-    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="c1"># If parsing fails, treat as missing</span>
-        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
-            <span class="p">{</span>
-                <span class="s2">&quot;change_a&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span>
-                <span class="s2">&quot;change_b&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span>
-                <span class="s2">&quot;ref_a&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span>
-                <span class="s2">&quot;ref_b&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span>
-            <span class="p">}</span>
-        <span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">phased</span><span class="p">:</span>
-        <span class="c1"># Allele-specific changes</span>
-        <span class="n">change_a</span> <span class="o">=</span> <span class="n">t_a</span> <span class="o">-</span> <span class="n">n_a</span>
-        <span class="n">change_b</span> <span class="o">=</span> <span class="n">t_b</span> <span class="o">-</span> <span class="n">n_b</span>
-        <span class="n">ref_a</span> <span class="o">=</span> <span class="n">n_a</span>
-        <span class="n">ref_b</span> <span class="o">=</span> <span class="n">n_b</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Combined change only</span>
-        <span class="n">total_normal</span> <span class="o">=</span> <span class="n">n_a</span> <span class="o">+</span> <span class="n">n_b</span>
-        <span class="n">total_tumor</span> <span class="o">=</span> <span class="n">t_a</span> <span class="o">+</span> <span class="n">t_b</span>
-        <span class="n">change_total</span> <span class="o">=</span> <span class="n">total_tumor</span> <span class="o">-</span> <span class="n">total_normal</span>
-
-        <span class="n">change_a</span> <span class="o">=</span> <span class="n">change_total</span>
-        <span class="n">ref_a</span> <span class="o">=</span> <span class="n">total_normal</span>
-        <span class="n">change_b</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-        <span class="n">ref_b</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-
-    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
-        <span class="p">{</span>
-            <span class="s2">&quot;change_a&quot;</span><span class="p">:</span> <span class="n">change_a</span><span class="p">,</span>
-            <span class="s2">&quot;change_b&quot;</span><span class="p">:</span> <span class="n">change_b</span><span class="p">,</span>
-            <span class="s2">&quot;ref_a&quot;</span><span class="p">:</span> <span class="n">ref_a</span><span class="p">,</span>
-            <span class="s2">&quot;ref_b&quot;</span><span class="p">:</span> <span class="n">ref_b</span><span class="p">,</span>
-        <span class="p">}</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">motif_base_class</span><span class="p">(</span><span class="n">motif</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">_libs</span><span class="o">.</span><span class="n">missing</span><span class="o">.</span><span class="n">NAType</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">motif_base_class</span><span class="p">(</span><span class="n">motif</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Classify a repeat-unit motif by nucleotide base composition.</span>
 
@@ -235,116 +158,6 @@
     <span class="k">if</span> <span class="n">has_gc</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">has_at</span><span class="p">:</span>
         <span class="k">return</span> <span class="s2">&quot;GC_only&quot;</span>
     <span class="k">return</span> <span class="s2">&quot;mixed&quot;</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">make_feature</span><span class="p">(</span>
-    <span class="n">motif</span><span class="p">,</span>
-    <span class="n">ref</span><span class="p">,</span>
-    <span class="n">delta</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">ru_length</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-    <span class="n">ru</span><span class="p">:</span> <span class="n">RuMode</span><span class="p">,</span>
-    <span class="n">ref_length</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-    <span class="n">change</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct a single STR mutation feature key for one allele or combined event.</span>
-
-<span class="sd">    The feature key is composed of optional components describing repeat-unit</span>
-<span class="sd">    length, repeat-unit content, reference length, and somatic change. Components</span>
-<span class="sd">    are concatenated using underscores.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    motif : str or pandas.NA</span>
-<span class="sd">        Repeat unit sequence (e.g. ``&quot;A&quot;``, ``&quot;AT&quot;``, ``&quot;AAT&quot;``).</span>
-
-<span class="sd">    ref : int or pandas.NA</span>
-<span class="sd">        Reference repeat length, typically derived from the normal allele</span>
-<span class="sd">        repeat count.</span>
-
-<span class="sd">    delta : int or pandas.NA</span>
-<span class="sd">        Tumor–normal change in repeat count for this allele or combined event.</span>
-
-<span class="sd">    ru_length : bool</span>
-<span class="sd">        If True, include the repeat-unit length as ``LEN{len(motif)}``</span>
-<span class="sd">        in the feature key.</span>
-
-<span class="sd">    ru : {None, &quot;ru&quot;, &quot;class&quot;}</span>
-<span class="sd">        Controls how repeat-unit *content* is represented in the feature key.</span>
-
-<span class="sd">        - ``None`` :</span>
-<span class="sd">          Do not include repeat-unit content.</span>
-<span class="sd">        - ``&quot;ru&quot;`` :</span>
-<span class="sd">          Include the full repeat-unit sequence (e.g. ``&quot;A&quot;``, ``&quot;AT&quot;``).</span>
-<span class="sd">        - ``&quot;class&quot;`` :</span>
-<span class="sd">          Include the base-composition class of the repeat unit:</span>
-
-<span class="sd">          - ``AT_only`` : motif contains only A/T</span>
-<span class="sd">          - ``GC_only`` : motif contains only G/C</span>
-<span class="sd">          - ``mixed`` : mixed A/T and G/C</span>
-
-<span class="sd">    ref_length : bool</span>
-<span class="sd">        If True, include the reference repeat length in the feature key.</span>
-
-<span class="sd">    change : bool</span>
-<span class="sd">        If True, include the tumor–normal repeat count change (delta) in the</span>
-<span class="sd">        feature key and discard events with ``delta == 0``.</span>
-
-<span class="sd">        If False, ignore delta and retain all loci that pass basic numeric</span>
-<span class="sd">        checks.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    str or pandas.NA</span>
-<span class="sd">        Feature key string (e.g. ``&quot;LEN1_AT_only_10_+1&quot;``, ``&quot;GC_only_12_-2&quot;``,</span>
-<span class="sd">        ``&quot;A_+1&quot;``), or ``pandas.NA`` if the event should be discarded.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">motif</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-
-    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">motif_s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">motif</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">motif_s</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-
-    <span class="c1"># RU length component (optional)</span>
-    <span class="k">if</span> <span class="n">ru_length</span><span class="p">:</span>
-        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;LEN</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">motif_s</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># RU content component (optional)</span>
-    <span class="k">if</span> <span class="n">ru</span> <span class="o">==</span> <span class="s2">&quot;class&quot;</span><span class="p">:</span>
-        <span class="n">ru_cls</span> <span class="o">=</span> <span class="n">motif_base_class</span><span class="p">(</span><span class="n">motif_s</span><span class="p">)</span>  <span class="c1"># AT_only / GC_only / mixed</span>
-        <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">ru_cls</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ru_cls</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">ru</span> <span class="o">==</span> <span class="s2">&quot;ru&quot;</span><span class="p">:</span>
-        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">motif_s</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">ru</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ru must be one of: None, &#39;class&#39;, &#39;ru&#39;.&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Reference length component</span>
-    <span class="k">if</span> <span class="n">ref_length</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">ref</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ref</span><span class="p">)))</span>
-
-    <span class="c1"># Somatic change component</span>
-    <span class="k">if</span> <span class="n">change</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">delta</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-        <span class="n">d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>
-        <span class="c1"># Only count true somatic events</span>
-        <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-        <span class="n">sign</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span> <span class="k">if</span> <span class="n">d</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
-        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sign</span><span class="si">}{</span><span class="n">d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># If everything was turned off (no ru, no ref_length, no change)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
-
-    <span class="k">return</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="build_mutation_matrix">
@@ -401,7 +214,7 @@
 <span class="sd">        normal allele repeat counts.</span>
 
 <span class="sd">        - Phased genotypes: per-allele normal repeat count</span>
-<span class="sd">        - Unphased genotypes: combined normal repeat count</span>
+<span class="sd">        - Unphased genotypes: sorts allele pairs and compares them element-wise</span>
 
 <span class="sd">    change : bool, default True</span>
 <span class="sd">        If True, include the tumor–normal repeat count change (delta) in</span>
@@ -427,62 +240,169 @@
 <span class="sd">      Genotypes are treated as phased, producing two allele-level events</span>
 <span class="sd">      per locus.</span>
 <span class="sd">    - ``&#39;/&#39;`` or missing :</span>
-<span class="sd">      Genotypes are treated as unphased, producing a single combined event</span>
-<span class="sd">      per locus based on total tumor vs. normal repeat counts.</span>
+<span class="sd">      Genotypes are treated as unphased, sorts allele pairs and compares them element-wise</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">mutations_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-    <span class="n">motif_col</span><span class="p">,</span> <span class="n">has_genotype_sep</span> <span class="o">=</span> <span class="n">validate_mutations_data</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="n">motif_col</span> <span class="o">=</span> <span class="n">validate_mutations_data</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="c1"># Convert allele columns to numeric once</span>
+    <span class="n">allele_cols</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;normal_allele_a&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;normal_allele_b&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tumor_allele_a&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tumor_allele_b&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">allele_cols</span><span class="p">:</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;coerce&quot;</span><span class="p">)</span>
 
-    <span class="c1"># Compute allele-level / combined changes and reference lengths</span>
-    <span class="n">changes</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">compute_changes_for_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">df</span><span class="p">[[</span><span class="s2">&quot;change_a&quot;</span><span class="p">,</span> <span class="s2">&quot;change_b&quot;</span><span class="p">,</span> <span class="s2">&quot;ref_a&quot;</span><span class="p">,</span> <span class="s2">&quot;ref_b&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">changes</span>
-
-    <span class="c1"># Build feature labels for each allele / combined event</span>
-    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;mutation_type_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="n">make_feature</span><span class="p">(</span>
-            <span class="n">motif</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="n">motif_col</span><span class="p">],</span>
-            <span class="n">ref</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;ref_a&quot;</span><span class="p">],</span>
-            <span class="n">delta</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;change_a&quot;</span><span class="p">],</span>
-            <span class="n">ru_length</span><span class="o">=</span><span class="n">ru_length</span><span class="p">,</span>
-            <span class="n">ru</span><span class="o">=</span><span class="n">ru</span><span class="p">,</span>
-            <span class="n">ref_length</span><span class="o">=</span><span class="n">ref_length</span><span class="p">,</span>
-            <span class="n">change</span><span class="o">=</span><span class="n">change</span><span class="p">,</span>
-        <span class="p">),</span>
-        <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;mutation_type_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="n">make_feature</span><span class="p">(</span>
-            <span class="n">motif</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="n">motif_col</span><span class="p">],</span>
-            <span class="n">ref</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;ref_b&quot;</span><span class="p">],</span>
-            <span class="n">delta</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;change_b&quot;</span><span class="p">],</span>
-            <span class="n">ru_length</span><span class="o">=</span><span class="n">ru_length</span><span class="p">,</span>
-            <span class="n">ru</span><span class="o">=</span><span class="n">ru</span><span class="p">,</span>
-            <span class="n">ref_length</span><span class="o">=</span><span class="n">ref_length</span><span class="p">,</span>
-            <span class="n">change</span><span class="o">=</span><span class="n">change</span><span class="p">,</span>
-        <span class="p">),</span>
-        <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Long format: one row per (sample, allele/combo-level mutation_type)</span>
-    <span class="n">df_long</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span>
-        <span class="n">df</span><span class="p">,</span>
-        <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sample&quot;</span><span class="p">],</span>
-        <span class="n">value_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;mutation_type_a&quot;</span><span class="p">,</span> <span class="s2">&quot;mutation_type_b&quot;</span><span class="p">],</span>
-        <span class="n">var_name</span><span class="o">=</span><span class="s2">&quot;allele_type&quot;</span><span class="p">,</span>
-        <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;mutation_type&quot;</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Drop entries without a valid feature (e.g. non-somatic when change=True)</span>
-    <span class="n">df_long</span> <span class="o">=</span> <span class="n">df_long</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;mutation_type&quot;</span><span class="p">])</span>
-
-    <span class="c1"># If nothing left (e.g. no somatic events), return empty matrix</span>
-    <span class="k">if</span> <span class="n">df_long</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="n">allele_cols</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
 
-    <span class="c1"># Count matrix: samples x mutation_type</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">allele_cols</span><span class="p">:</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="c1"># Create phased mask once</span>
+    <span class="k">if</span> <span class="s2">&quot;genotype_separator&quot;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">phased_mask</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;genotype_separator&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">&quot;|&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">phased_mask</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="c1"># Prepare output columns</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ref_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ref_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">NA</span>
+
+    <span class="c1"># --- Phased rows: compare alleles by position ---</span>
+    <span class="n">phased_idx</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">phased_mask</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">phased_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;change_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;tumor_allele_a&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;normal_allele_a&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;change_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;tumor_allele_b&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;normal_allele_b&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;ref_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;normal_allele_a&quot;</span><span class="p">]</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;ref_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">phased_idx</span><span class="p">,</span> <span class="s2">&quot;normal_allele_b&quot;</span><span class="p">]</span>
+
+    <span class="c1"># --- Unphased rows: sort allele pairs before comparison ---</span>
+    <span class="n">unphased_idx</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">~</span><span class="n">phased_mask</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unphased_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">normal_pairs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">unphased_idx</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;normal_allele_a&quot;</span><span class="p">,</span> <span class="s2">&quot;normal_allele_b&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">tumor_pairs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">unphased_idx</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;tumor_allele_a&quot;</span><span class="p">,</span> <span class="s2">&quot;tumor_allele_b&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">unphased_idx</span><span class="p">,</span> <span class="s2">&quot;ref_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">normal_pairs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">unphased_idx</span><span class="p">,</span> <span class="s2">&quot;ref_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">normal_pairs</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">unphased_idx</span><span class="p">,</span> <span class="s2">&quot;change_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tumor_pairs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">normal_pairs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">unphased_idx</span><span class="p">,</span> <span class="s2">&quot;change_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tumor_pairs</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">normal_pairs</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># Use nullable integer dtype</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;change_a&quot;</span><span class="p">,</span> <span class="s2">&quot;change_b&quot;</span><span class="p">,</span> <span class="s2">&quot;ref_a&quot;</span><span class="p">,</span> <span class="s2">&quot;ref_b&quot;</span><span class="p">]:</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="o">~</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_a&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_b&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">))]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="c1"># Fallback: no features selected -&gt; just count mutations per sample</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ru_length</span> <span class="ow">and</span> <span class="n">ru</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ref_length</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">change</span><span class="p">:</span>
+        <span class="n">df</span><span class="p">[</span><span class="s2">&quot;event_a&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_a&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">ne</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">df</span><span class="p">[</span><span class="s2">&quot;event_b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_b&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">ne</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">mutation_count</span><span class="o">=</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;event_a&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;event_b&quot;</span><span class="p">])</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;sample&quot;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s2">&quot;mutation_count&quot;</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Build motif-derived components once</span>
+    <span class="n">motif</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">motif_col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;string&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+    <span class="n">valid_motif</span> <span class="o">=</span> <span class="n">motif</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">motif</span><span class="o">.</span><span class="n">ne</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ru</span> <span class="o">==</span> <span class="s2">&quot;class&quot;</span><span class="p">:</span>
+        <span class="n">motif_component</span> <span class="o">=</span> <span class="n">motif</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">motif_base_class</span><span class="p">)</span>
+        <span class="n">valid_motif</span> <span class="o">&amp;=</span> <span class="n">motif_component</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">ru</span> <span class="o">==</span> <span class="s2">&quot;ru&quot;</span><span class="p">:</span>
+        <span class="n">motif_component</span> <span class="o">=</span> <span class="n">motif</span>
+        <span class="n">valid_motif</span> <span class="o">&amp;=</span> <span class="n">motif</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">ru</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">motif_component</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;object&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ru must be one of: None, &#39;class&#39;, &#39;ru&#39;.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ru_length</span><span class="p">:</span>
+        <span class="n">motif_len_component</span> <span class="o">=</span> <span class="s2">&quot;LEN&quot;</span> <span class="o">+</span> <span class="n">motif</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">len</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;string&quot;</span><span class="p">)</span>
+        <span class="n">valid_motif</span> <span class="o">&amp;=</span> <span class="n">motif</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">motif_len_component</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;object&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Create long format first, then build features vectorized</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">df</span><span class="p">[[</span><span class="s2">&quot;sample&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">left</span><span class="p">[</span><span class="s2">&quot;motif_valid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">valid_motif</span>
+    <span class="n">left</span><span class="p">[</span><span class="s2">&quot;motif_component&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motif_component</span>
+    <span class="n">left</span><span class="p">[</span><span class="s2">&quot;motif_len_component&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motif_len_component</span>
+    <span class="n">left</span><span class="p">[</span><span class="s2">&quot;ref&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ref_a&quot;</span><span class="p">]</span>
+    <span class="n">left</span><span class="p">[</span><span class="s2">&quot;delta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_a&quot;</span><span class="p">]</span>
+
+    <span class="n">right</span> <span class="o">=</span> <span class="n">df</span><span class="p">[[</span><span class="s2">&quot;sample&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">right</span><span class="p">[</span><span class="s2">&quot;motif_valid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">valid_motif</span>
+    <span class="n">right</span><span class="p">[</span><span class="s2">&quot;motif_component&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motif_component</span>
+    <span class="n">right</span><span class="p">[</span><span class="s2">&quot;motif_len_component&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">motif_len_component</span>
+    <span class="n">right</span><span class="p">[</span><span class="s2">&quot;ref&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ref_b&quot;</span><span class="p">]</span>
+    <span class="n">right</span><span class="p">[</span><span class="s2">&quot;delta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;change_b&quot;</span><span class="p">]</span>
+
+    <span class="n">df_long</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Validity mask</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;motif_valid&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ref_length</span><span class="p">:</span>
+        <span class="n">keep</span> <span class="o">&amp;=</span> <span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;ref&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">change</span><span class="p">:</span>
+        <span class="n">keep</span> <span class="o">&amp;=</span> <span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;delta&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+        <span class="n">keep</span> <span class="o">&amp;=</span> <span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;delta&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">ne</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">df_long</span> <span class="o">=</span> <span class="n">df_long</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># If no valid features remain, return empty DataFrame</span>
+    <span class="k">if</span> <span class="n">df_long</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="c1"># Build feature strings from enabled components</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">ru_length</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;motif_len_component&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;string&quot;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">ru</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;class&quot;</span><span class="p">,</span> <span class="s2">&quot;ru&quot;</span><span class="p">}:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;motif_component&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;string&quot;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">ref_length</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;ref&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;string&quot;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">change</span><span class="p">:</span>
+        <span class="n">delta_int</span> <span class="o">=</span> <span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;delta&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
+        <span class="n">delta_str</span> <span class="o">=</span> <span class="n">delta_int</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+        <span class="n">delta_str</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">delta_int</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;+&quot;</span> <span class="o">+</span> <span class="n">delta_str</span><span class="p">,</span> <span class="n">delta_str</span><span class="p">)</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">delta_str</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">df_long</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;string&quot;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;At least one feature component must be enabled: &quot;</span>
+            <span class="s2">&quot;ru_length, ru, ref_length, or change.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">feature</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+        <span class="n">feature</span> <span class="o">=</span> <span class="n">feature</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">p</span>
+
+    <span class="n">df_long</span><span class="p">[</span><span class="s2">&quot;mutation_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">feature</span>
+
     <span class="n">mutation_counts</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">df_long</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;sample&quot;</span><span class="p">,</span> <span class="s2">&quot;mutation_type&quot;</span><span class="p">])</span>
+        <span class="n">df_long</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;sample&quot;</span><span class="p">,</span> <span class="s2">&quot;mutation_type&quot;</span><span class="p">],</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="o">.</span><span class="n">size</span><span class="p">()</span>
         <span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="n">fill_value</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="o">.</span><span class="n">sort_index</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>

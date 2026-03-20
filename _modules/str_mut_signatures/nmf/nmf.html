@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>str_mut_signatures.nmf.nmf &mdash; str_mut_signatures 2.0.0 documentation</title>
+  <title>str_mut_signatures.nmf.nmf &mdash; str_mut_signatures 2.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../../_static/documentation_options.js?v=f5cff4aa"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -85,7 +85,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">KMeans</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">NMF</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">silhouette_score</span>
-
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandas.api.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_numeric_dtype</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="c1"># Python 3.11+</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span>
@@ -348,10 +348,7 @@
     <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;matrix is empty; NMF requires a non-empty matrix.&quot;</span><span class="p">)</span>
 
-    <span class="c1"># Ensure numeric dtype</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span>
-        <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">matrix</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">values</span>
-    <span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">is_numeric_dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">matrix</span><span class="o">.</span><span class="n">dtypes</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;matrix must contain only numeric values.&quot;</span><span class="p">)</span>
 
     <span class="n">values</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>

@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Main functionality &mdash; str_mut_signatures 2.0.0 documentation</title>
+  <title>Main functionality &mdash; str_mut_signatures 2.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=51b770b3"></script>
+      <script src="_static/documentation_options.js?v=f5cff4aa"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -105,7 +105,7 @@
 Provides both library and CLI interfaces.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="str_mut_signatures.parse_vcf_files">
-<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">parse_vcf_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_pass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_perfect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/extract_mutations.html#parse_vcf_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.parse_vcf_files" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">str_mut_signatures.</span></span><span class="sig-name descname"><span class="pre">parse_vcf_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_pass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_perfect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/str_mut_signatures/extract_tally/extract_mutations.html#parse_vcf_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#str_mut_signatures.parse_vcf_files" title="Link to this definition"></a></dt>
 <dd><p>Process all VCF (<code class="docutils literal notranslate"><span class="pre">.vcf</span></code> / <code class="docutils literal notranslate"><span class="pre">.vcf.gz</span></code>) files in a directory into a DataFrame.</p>
 <p>Supports GangSTR and conSTRain STR-annotated VCFs, as well as VCFs annotated
 with <code class="docutils literal notranslate"><span class="pre">strvcf_annotator</span></code>.</p>
@@ -116,6 +116,11 @@ with <code class="docutils literal notranslate"><span class="pre">strvcf_annotat
 <li><p><strong>input_dir</strong> (<em>str</em><em> or </em><em>pathlib.Path</em>) – Directory containing <code class="docutils literal notranslate"><span class="pre">.vcf</span></code> or <code class="docutils literal notranslate"><span class="pre">.vcf.gz</span></code> files.</p></li>
 <li><p><strong>filter_by_pass</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, keep only records with <code class="docutils literal notranslate"><span class="pre">FILTER</span> <span class="pre">==</span> <span class="pre">&quot;PASS&quot;</span></code>.</p></li>
 <li><p><strong>filter_by_perfect</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, keep only records with <code class="docutils literal notranslate"><span class="pre">INFO/PERFECT</span> <span class="pre">!=</span> <span class="pre">&quot;FALSE&quot;</span></code> when present.</p></li>
+<li><p><strong>n_jobs</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – <p>Number of parallel worker processes to use for parsing files.</p>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">None</span></code> (default), uses all available CPU cores.</p></li>
+</ul>
+</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -260,7 +265,7 @@ Use base-composition class of the repeat unit:</p>
 normal allele repeat counts.</p>
 <ul>
 <li><p>Phased genotypes: per-allele normal repeat count</p></li>
-<li><p>Unphased genotypes: combined normal repeat count</p></li>
+<li><p>Unphased genotypes: sorts allele pairs and compares them element-wise</p></li>
 </ul>
 </p></li>
 <li><p><strong>change</strong> (<em>bool</em><em>, </em><em>default True</em>) – <p>If True, include the tumor–normal repeat count change (delta) in
@@ -290,8 +295,7 @@ checks, producing presence/absence-style summaries.</p>
 Genotypes are treated as phased, producing two allele-level events
 per locus.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'/'</span></code> or missing :
-Genotypes are treated as unphased, producing a single combined event
-per locus based on total tumor vs. normal repeat counts.</p></li>
+Genotypes are treated as unphased, sorts allele pairs and compares them element-wise</p></li>
 </ul>
 </dd></dl>
 
