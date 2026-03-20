@@ -251,7 +251,7 @@ class TestCLIExtractCommand:
                 "--ru-length",
                 "--ref-length",
                 "--change",
-                "--n_jobs",
+                "--n-jobs",
                 "1",
             ],
             capture_output=True,

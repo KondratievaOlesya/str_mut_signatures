@@ -8,11 +8,10 @@ import pandas as pd
 RuMode = Literal[None, "class", "ru"]  # none, base-class, exact RU
 
 
-def validate_mutations_data(df: pd.DataFrame) -> tuple[str, bool]:
+def validate_mutations_data(df: pd.DataFrame) -> str:
     """
     Validate the input DataFrame and return:
       - motif column name ('motif' or 'RU')
-      - whether genotype_separator column is present
     """
     if not isinstance(df, pd.DataFrame):
         raise TypeError("mutations_data must be a pandas.DataFrame")
@@ -141,7 +140,7 @@ def build_mutation_matrix(
         normal allele repeat counts.
 
         - Phased genotypes: per-allele normal repeat count
-        - Unphased genotypes: combined normal repeat count
+        - Unphased genotypes: sorts allele pairs and compares them element-wise
 
     change : bool, default True
         If True, include the tumor–normal repeat count change (delta) in
@@ -167,8 +166,7 @@ def build_mutation_matrix(
       Genotypes are treated as phased, producing two allele-level events
       per locus.
     - ``'/'`` or missing :
-      Genotypes are treated as unphased, producing a single combined event
-      per locus based on total tumor vs. normal repeat counts.
+      Genotypes are treated as unphased, sorts allele pairs and compares them element-wise
     """
     df = mutations_data.copy()
     motif_col = validate_mutations_data(df)
@@ -296,7 +294,7 @@ def build_mutation_matrix(
 
     df_long = df_long.loc[keep].copy()
 
-    # If no valid features remain, fallback to mutation counts
+    # If no valid features remain, return empty DataFrame
     if df_long.empty:
         return pd.DataFrame()
     # Build feature strings from enabled components

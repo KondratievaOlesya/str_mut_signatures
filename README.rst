@@ -182,7 +182,7 @@ Command Line
         --ru class \
         --ref-length \
         --change \
-        --n_jobs 4
+        --n-jobs 4
 
 This produces a count matrix (TSV) with:
 

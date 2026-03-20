@@ -159,7 +159,7 @@ Examples:
     )
 
     extract_parser.add_argument(
-        "--n_jobs",
+        "--n-jobs",
         type=int,
         default=None,
         help="Number of parallel jobs to use for processing VCF files.",

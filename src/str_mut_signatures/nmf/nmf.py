@@ -13,7 +13,7 @@ from scipy.optimize import nnls
 from sklearn.cluster import KMeans
 from sklearn.decomposition import NMF
 from sklearn.metrics import silhouette_score
-
+from pandas.api.types import is_numeric_dtype
 try:
     # Python 3.11+
     from datetime import UTC
@@ -273,10 +273,7 @@ def validate_input_matrix(matrix: pd.DataFrame) -> np.ndarray:
     if matrix.empty:
         raise ValueError("matrix is empty; NMF requires a non-empty matrix.")
 
-    # Ensure numeric dtype
-    if not np.issubdtype(matrix.dtypes.values[0], np.number) or not all(
-        np.issubdtype(dtype, np.number) for dtype in matrix.dtypes.values
-    ):
+    if not all(is_numeric_dtype(dtype) for dtype in matrix.dtypes):
         raise TypeError("matrix must contain only numeric values.")
 
     values = matrix.to_numpy(dtype=float)
