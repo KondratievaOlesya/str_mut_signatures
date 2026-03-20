@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 as far as reasonably possible for a research codebase.
 
+## [2.0.1] - 2026-03-20
+### Added
+
+* Added `n_jobs` parameter to `parse_vcf_files` to enable parallel processing of VCF files using multiple CPU cores.
+
+### Changed
+
+* `parse_vcf_files` now supports multiprocessing via `ProcessPoolExecutor`, significantly improving performance on large datasets.
+* Mutations without allele change are now excluded during parsing.
+* Updated tests to reflect new parsing behavior and parallel execution.
+
+### Fixed
+
+* Fixed a bug in `build_mutation_matrix` where mutations with zero change were incorrectly counted.
+* Corrected matrix construction logic: when no features are selected, the total number of mutations is now reported accurately (excluding zero-change mutations).
+
+
 ## [2.0.0] - 2026-01-20
 
 ### **Changed**

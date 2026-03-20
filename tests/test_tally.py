@@ -10,9 +10,6 @@ import pytest
 from str_mut_signatures.extract_tally.extract_mutations import parse_vcf_files
 from str_mut_signatures.extract_tally.tally import (
     build_mutation_matrix,
-    compute_changes_for_row,
-    is_phased,
-    make_feature,
     motif_base_class,
     validate_mutations_data,
 )
@@ -32,7 +29,7 @@ def mutations_df(vcf_dir):
     """
     Run parse_vcf_files on the prepared test VCFs.
     """
-    df = parse_vcf_files(vcf_dir)
+    df = parse_vcf_files(vcf_dir, n_jobs=1)
 
     assert isinstance(df, pd.DataFrame)
     assert not df.empty, "Parsed mutations DataFrame is empty; check test_input.zip content."
@@ -61,31 +58,31 @@ MATRIX_CASES = [
         "matrix_ru_length_ref_change",
         {"ru_length": True, "ru": None, "ref_length": True, "change": True},
         r"^LEN\d+_\d+_[+-]\d+$",
-        "afd366b9975dd59ec6dbc593d7bb8ea8",
+        "3ca8aaf98fe1be026aa6c6e57c68fced",
     ),
     (
         "matrix_ru_seq_ref_change",
         {"ru_length": False, "ru": "ru", "ref_length": True, "change": True},
         r"^[^_]+_\d+_[+-]\d+$",
-        "51c062035ebf6a3c19ac295fa085b104",
+        "cabc9683eaa635f5487e04c056850ee8",
     ),
     (
         "matrix_no_ru_ref_change",
         {"ru_length": False, "ru": None, "ref_length": True, "change": True},
         r"^\d+_[+-]\d+$",
-        "27b480e60805e209500d3839502dd149",
+        "9150ab9572cea9faf2939559f37cc254",
     ),
     (
         "matrix_ru_length_no_change",
         {"ru_length": True, "ru": None, "ref_length": True, "change": False},
         r"^LEN\d+_\d+$",
-        "1d5780166d7a508b847a0a8291079e8c",
+        "3cdb22ae5fbeb6a9ec7b654a72326842",
     ),
     (
         "matrix_ru_seq_change_only",
         {"ru_length": False, "ru": "ru", "ref_length": False, "change": True},
         r"^[^_]+_[+-]\d+$",
-        "10a7c3cf0cd73b68e81744aa746a19d6",
+        "4579bf828bc9de923e815bf673e70cb1",
     ),
 ]
 
@@ -113,9 +110,8 @@ class TestValidateMutationsData:
             }
         )
 
-        motif_col, has_sep = validate_mutations_data(df)
+        motif_col = validate_mutations_data(df)
         assert motif_col == "motif"
-        assert not has_sep
 
     def test_valid_with_RU_column_and_genotype_separator(self):
         df = pd.DataFrame(
@@ -130,9 +126,8 @@ class TestValidateMutationsData:
             }
         )
 
-        motif_col, has_sep = validate_mutations_data(df)
+        motif_col = validate_mutations_data(df)
         assert motif_col == "RU"
-        assert has_sep
 
     def test_missing_required_columns_raises(self):
         df = pd.DataFrame({"sample": ["s1"], "motif": ["A"]})
@@ -159,93 +154,6 @@ class TestValidateMutationsData:
     def test_non_dataframe_raises_type_error(self):
         with pytest.raises(TypeError):
             validate_mutations_data("not a dataframe")  # type: ignore[arg-type]
-
-
-class TestIsPhased:
-    def test_is_phased_true_for_pipe(self):
-        assert is_phased("|")
-
-    def test_is_phased_false_for_slash(self):
-        assert not is_phased("/")
-
-    def test_is_phased_false_for_none(self):
-        assert not is_phased(None)
-
-    def test_is_phased_false_for_other_string(self):
-        assert not is_phased("?")
-
-
-class TestComputeChangesForRow:
-    def test_phased_changes_two_alleles(self):
-        row = pd.Series(
-            {
-                "normal_allele_a": "10",
-                "normal_allele_b": "11",
-                "tumor_allele_a": "10",
-                "tumor_allele_b": "14",
-                "genotype_separator": "|",
-            }
-        )
-
-        out = compute_changes_for_row(row)
-
-        assert out["change_a"] == 0  # 10 - 10
-        assert out["change_b"] == 3  # 14 - 11
-        assert out["ref_a"] == 10
-        assert out["ref_b"] == 11
-
-    def test_unphased_combined_change(self):
-        row = pd.Series(
-            {
-                "normal_allele_a": "10",
-                "normal_allele_b": "11",
-                "tumor_allele_a": "10",
-                "tumor_allele_b": "14",
-                "genotype_separator": "/",  # unphased
-            }
-        )
-
-        out = compute_changes_for_row(row)
-
-        # total_normal = 21, total_tumor = 24, delta = +3
-        assert out["change_a"] == 3
-        assert pd.isna(out["change_b"])
-        assert out["ref_a"] == 21
-        assert pd.isna(out["ref_b"])
-
-    def test_no_genotype_separator_treated_as_unphased(self):
-        row = pd.Series(
-            {
-                "normal_allele_a": "5",
-                "normal_allele_b": "5",
-                "tumor_allele_a": "7",
-                "tumor_allele_b": "7",
-            }
-        )
-
-        out = compute_changes_for_row(row)
-
-        # total_normal = 10, total_tumor = 14, delta = +4
-        assert out["change_a"] == 4
-        assert pd.isna(out["change_b"])
-        assert out["ref_a"] == 10
-        assert pd.isna(out["ref_b"])
-
-    def test_non_numeric_alleles_return_na(self):
-        row = pd.Series(
-            {
-                "normal_allele_a": "NA",
-                "normal_allele_b": "10",
-                "tumor_allele_a": "10",
-                "tumor_allele_b": "11",
-                "genotype_separator": "|",
-            }
-        )
-
-        out = compute_changes_for_row(row)
-
-        assert all(pd.isna(out[k]) for k in ["change_a", "change_b", "ref_a", "ref_b"])
-
 
 class TestMotifBaseClass:
     def test_at_only_simple(self):
@@ -278,126 +186,18 @@ class TestMotifBaseClass:
         assert pd.isna(motif_base_class("123"))
 
 
-class TestMakeFeature:
-    def test_length_mode_with_ref_and_change(self):
-        feat = make_feature(
-            motif="A",
-            ref=10,
-            delta=1,
-            ru_length=True,
-            ru=None,
-            ref_length=True,
-            change=True,
-        )
-        assert feat == "LEN1_10_+1"
-
-    def test_ru_mode_with_ref_and_change(self):
-        feat = make_feature(
-            motif="AT",
-            ref=20,
-            delta=-2,
-            ru_length=False,
-            ru="ru",
-            ref_length=True,
-            change=True,
-        )
-        assert feat == "AT_20_-2"
-
-    def test_at_mode_at_rich(self):
-        feat = make_feature(
-            motif="AT",
-            ref=10,
-            delta=1,
-            ru_length=False,
-            ru="class",
-            ref_length=True,
-            change=True,
-        )
-        assert feat == "AT_only_10_+1"
-
-    def test_at_mode_non_at_rich(self):
-        feat = make_feature(
-            motif="AC",
-            ref=8,
-            delta=2,
-            ru_length=False,
-            ru="class",
-            ref_length=True,
-            change=True,
-        )
-        assert feat == "mixed_8_+2"
-
-    def test_no_change_component_when_change_false(self):
-        feat = make_feature(
-            motif="A",
-            ref=10,
-            delta=0,
-            ru_length=True,
-            ru=None,
-            ref_length=True,
-            change=False,
-        )
-        # Only LEN1 and ref length
-        assert feat == "LEN1_10"
-
-    def test_delta_zero_dropped_when_change_true(self):
-        feat = make_feature(
-            motif="A",
-            ref=10,
-            delta=0,
-            ru_length=True,
-            ru=None,
-            ref_length=True,
-            change=True,
-        )
-        assert pd.isna(feat)
-
-    def test_missing_ref_drops_feature_when_ref_length_true(self):
-        feat = make_feature(
-            motif="A",
-            ref=pd.NA,
-            delta=1,
-            ru_length=True,
-            ru=None,
-            ref_length=True,
-            change=True,
-        )
-        assert pd.isna(feat)
-
-    def test_ru_none_ref_false_change_false_results_in_na(self):
-        feat = make_feature(
-            motif="A",
-            ref=10,
-            delta=1,
-            ru_length=False,
-            ru=None,
-            ref_length=False,
-            change=False,
-        )
-        # nothing added to parts → NA
-        assert pd.isna(feat)
-
-    def test_invalid_ru_raises(self):
-        with pytest.raises(ValueError):
-            make_feature(
-                motif="A",
-                ref=10,
-                delta=1,
-                ru_length=False,
-                ru="something",  # type: ignore[arg-type]
-                ref_length=True,
-                change=True,
-            )
-
-
 class TestBuildMutationMatrix:
     def test_phased_matrix_two_alleles(self):
         """
-        Phased: we expect allele-specific events.
+        Phased genotypes are compared allele-by-allele.
+
         One locus with:
           normal: 10,10
           tumor : 10,11
-        → change_a = 0 (dropped), change_b = +1 → 1 event.
+
+        -> allele A delta = 0 (filtered out)
+        -> allele B delta = +1
+        -> one feature: LEN1_10_+1 with count 1
         """
         df = pd.DataFrame(
             {
@@ -415,17 +215,23 @@ class TestBuildMutationMatrix:
 
         assert mat.shape == (1, 1)
         assert list(mat.index) == ["s1"]
-        cols = list(mat.columns)
-        assert cols == ["LEN1_10_+1"]
-        assert mat.iloc[0, 0] == 1
+        assert list(mat.columns) == ["LEN1_10_+1"]
+        assert mat.loc["s1", "LEN1_10_+1"] == 1
 
-    def test_unphased_matrix_combined_event(self):
+    def test_unphased_matrix_uses_sorted_pairing(self):
         """
-        Unphased: one combined event per locus.
+        Unphased genotypes are compared after sorting allele pairs, not by summing.
+
         One locus with:
-          normal: 10,10  (total 20)
-          tumor : 10,11  (total 21)
-        → combined change +1 at ref 20.
+          normal: 10,10
+          tumor : 10,11
+
+        sorted normal = (10,10)
+        sorted tumor  = (10,11)
+
+        -> allele A delta = 0 (filtered out)
+        -> allele B delta = +1
+        -> one feature: LEN1_10_+1 with count 1
         """
         df = pd.DataFrame(
             {
@@ -443,13 +249,52 @@ class TestBuildMutationMatrix:
 
         assert mat.shape == (1, 1)
         assert list(mat.index) == ["s1"]
-        cols = list(mat.columns)
-        assert cols == ["LEN1_20_+1"]
-        assert mat.iloc[0, 0] == 1
+        assert list(mat.columns) == ["LEN1_10_+1"]
+        assert mat.loc["s1", "LEN1_10_+1"] == 1
+
+    def test_unphased_matrix_does_not_collapse_to_total_sum(self):
+        """
+        Unphased comparison should preserve genotype changes that would be lost
+        if allele sums were used.
+
+        normal: 10,12
+        tumor : 11,11
+
+        Correct sorted comparison:
+          sorted normal = (10,12)
+          sorted tumor  = (11,11)
+          deltas = +1, -1
+
+        -> two mutation features should be counted
+        """
+        df = pd.DataFrame(
+            {
+                "sample": ["s1"],
+                "normal_allele_a": ["10"],
+                "normal_allele_b": ["12"],
+                "tumor_allele_a": ["11"],
+                "tumor_allele_b": ["11"],
+                "motif": ["A"],
+                "genotype_separator": ["/"],
+            }
+        )
+
+        mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=True)
+
+        assert list(mat.index) == ["s1"]
+        assert set(mat.columns) == {"LEN1_10_+1", "LEN1_12_-1"}
+        assert mat.loc["s1", "LEN1_10_+1"] == 1
+        assert mat.loc["s1", "LEN1_12_-1"] == 1
 
     def test_at_mode_in_matrix(self):
         """
-        AT mode: classify motifs into AT_rich / non_AT_rich.
+        RU class mode should classify motifs by base composition.
+
+        Two phased loci for one sample:
+        - motif AT -> AT_only
+        - motif AC -> mixed
+
+        Each locus has both alleles changed by +1, so each feature count is 2.
         """
         df = pd.DataFrame(
             {
@@ -465,17 +310,15 @@ class TestBuildMutationMatrix:
 
         mat = build_mutation_matrix(df, ru_length=False, ru="class", ref_length=True, change=True)
 
-        cols = set(mat.columns)
-        # First row: AT_only_10_+1 (each allele 10 -> 11 → two events, but both same)
-        # Second row: mixed_8_+1 (similar)
-        assert "AT_only_10_+1" in cols
-        assert "mixed_8_+1" in cols
-        # Only one sample "s1"
         assert list(mat.index) == ["s1"]
+        assert "AT_only_10_+1" in mat.columns
+        assert "mixed_8_+1" in mat.columns
+        assert mat.loc["s1", "AT_only_10_+1"] == 2
+        assert mat.loc["s1", "mixed_8_+1"] == 2
 
-    def test_no_somatic_events_returns_empty(self):
+    def test_no_somatic_events_returns_empty_when_features_selected(self):
         """
-        When all deltas are zero and change=True, matrix should be empty.
+        When change=True and no allele has non-zero delta, the feature matrix should be empty.
         """
         df = pd.DataFrame(
             {
@@ -483,7 +326,7 @@ class TestBuildMutationMatrix:
                 "normal_allele_a": ["10"],
                 "normal_allele_b": ["10"],
                 "tumor_allele_a": ["10"],
-                "tumor_allele_b": ["10"],  # no change
+                "tumor_allele_b": ["10"],
                 "motif": ["A"],
                 "genotype_separator": ["|"],
             }
@@ -492,10 +335,82 @@ class TestBuildMutationMatrix:
         mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=True)
         assert mat.empty
 
-    def test_change_false_keeps_all_events(self):
+    def test_non_mutations_filtered_when_no_features_selected(self):
         """
-        With change=False, features do not depend on delta and all loci
-        that pass numeric checks should contribute.
+        Even when no feature components are selected, unchanged loci must not be counted.
+
+        Here:
+        - first row has no mutation
+        - second row has one changed allele
+
+        Expected fallback output:
+          mutation_count = 1
+        """
+        df = pd.DataFrame(
+            {
+                "sample": ["s1", "s1"],
+                "normal_allele_a": ["10", "10"],
+                "normal_allele_b": ["10", "10"],
+                "tumor_allele_a": ["10", "10"],
+                "tumor_allele_b": ["10", "11"],
+                "motif": ["A", "A"],
+                "genotype_separator": ["|", "|"],
+            }
+        )
+
+        mat = build_mutation_matrix(
+            df,
+            ru_length=False,
+            ru=None,
+            ref_length=False,
+            change=False,
+        )
+
+        assert list(mat.index) == ["s1"]
+        assert list(mat.columns) == ["mutation_count"]
+        assert mat.loc["s1", "mutation_count"] == 1
+
+    def test_no_features_selected_counts_only_true_mutations_unphased(self):
+        """
+        In fallback mutation_count mode, unphased rows should still use sorted pairing.
+
+        normal: 10,12
+        tumor : 11,11
+
+        -> sorted pairing gives deltas +1 and -1
+        -> mutation_count = 2
+        """
+        df = pd.DataFrame(
+            {
+                "sample": ["s1"],
+                "normal_allele_a": ["10"],
+                "normal_allele_b": ["12"],
+                "tumor_allele_a": ["11"],
+                "tumor_allele_b": ["11"],
+                "motif": ["A"],
+                "genotype_separator": ["/"],
+            }
+        )
+
+        mat = build_mutation_matrix(
+            df,
+            ru_length=False,
+            ru=None,
+            ref_length=False,
+            change=False,
+        )
+
+        assert list(mat.index) == ["s1"]
+        assert list(mat.columns) == ["mutation_count"]
+        assert mat.loc["s1", "mutation_count"] == 2
+
+    def test_change_false_with_features_still_filters_non_mutations(self):
+        """
+        When feature components are selected but change=False, unchanged loci should still
+        not contribute if the corrected implementation filters non-mutations globally.
+
+        Row 1: unchanged -> should not count
+        Row 2: both alleles changed -> should contribute 2 events to LEN1_10
         """
         df = pd.DataFrame(
             {
@@ -511,12 +426,9 @@ class TestBuildMutationMatrix:
 
         mat = build_mutation_matrix(df, ru_length=True, ru=None, ref_length=True, change=False)
 
-        # With change=False + ref_length=True + ru_length=True:
-        # feature is LEN1_10 for each allele/event.
         assert list(mat.index) == ["s1"]
         assert list(mat.columns) == ["LEN1_10"]
-        # 2 rows * 2 alleles each = 4 events
-        assert mat.iloc[0, 0] == 4
+        assert mat.loc["s1", "LEN1_10"] == 2
 
 
 class TestBuildMutationMatrixLarge:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import gzip
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -157,8 +159,6 @@ def process_vcf_to_rows(
             f"(expected REPCN for GangSTR or REPLEN for conSTRain)."
         )
 
-    cn_field = vres.copy_number_field  # "REPCN" or "REPLEN"
-
     if not vres.has_paired_samples:
         raise ValueError(
             f"VCF '{path}' must contain at least two samples "
@@ -171,19 +171,22 @@ def process_vcf_to_rows(
             f"(could not determine phased '|' vs unphased '/')."
         )
 
+    cn_field = vres.copy_number_field  # "REPCN" or "REPLEN"
     genotype_separator = vres.genotype_separator  # '|' or '/'
 
     rows = []
     filter_not_passed_count = 0
     non_perfect_count = 0
     written_variants = 0
+    equal_alleles_count = 0
 
+    # By convention: first = NORMAL, second = TUMOR
+    normal_idx = 9
+    tumor_idx = 10
     # We are using filename as sample identifier
     sample_name = path.name.replace(".vcf", "").replace(".vcf.gz", "")
 
     header_cols = None
-    normal_idx = None
-    tumor_idx = None
     format_fields = None
 
     with open_maybe_gzip(path) as f:
@@ -196,9 +199,6 @@ def process_vcf_to_rows(
                         f"VCF '{path}' must have at least 2 samples (normal, tumor) "
                         f"in the header after FORMAT."
                     )
-                # By convention: first = NORMAL, second = TUMOR
-                normal_idx = 9
-                tumor_idx = 10
                 continue
 
             # Other header lines
@@ -233,8 +233,7 @@ def process_vcf_to_rows(
             motif = info.get("RU", "")
             motif = normalize_motif(motif)
             # FORMAT & samples
-            if format_fields is None:
-                format_fields = cols[8].split(":")
+            format_fields = cols[8].split(":")
 
             try:
                 normal_sample = cols[normal_idx]
@@ -244,19 +243,27 @@ def process_vcf_to_rows(
                     f"VCF '{path}' does not contain expected normal/tumor sample "
                     f"columns at indices 9 and 10."
                 ) from err
-
+            try:
+                cn_idx = format_fields.index(cn_field)
+            except ValueError:
+                continue
             # parse NORMAL copy numbers
             normal_values = normal_sample.split(":")
-            normal_fmt = dict(zip(format_fields, normal_values))
-            n_a, n_b = parse_copy_number(normal_fmt.get(cn_field, ".,."))
+            normal_cn = normal_values[cn_idx] if cn_idx < len(normal_values) else ".,."
+            n_a, n_b = parse_copy_number(normal_cn)
 
             # parse TUMOR copy numbers
             tumor_values = tumor_sample.split(":")
-            tumor_fmt = dict(zip(format_fields, tumor_values))
-            t_a, t_b = parse_copy_number(tumor_fmt.get(cn_field, ".,."))
+            tumor_cn = tumor_values[cn_idx] if cn_idx < len(tumor_values) else ".,."
+            t_a, t_b = parse_copy_number(tumor_cn)
 
             # Require numeric copy numbers for all alleles; otherwise skip variant
             if not (n_a.isnumeric() and n_b.isnumeric() and t_a.isnumeric() and t_b.isnumeric()):
+                continue
+
+            same = sorted((t_a, t_b)) == sorted((n_a, n_b))
+            if same:
+                equal_alleles_count += 1
                 continue
 
             written_variants += 1
@@ -294,8 +301,34 @@ def process_vcf_to_rows(
                 f"{path.name}: skipped {non_perfect_count} "
                 f"({pct:.2f}%) variants due to PERFECT == FALSE"
             )
-
+    denom = written_variants + equal_alleles_count
+    if denom > 0:
+        print(
+            f"{path.name}: skipped {equal_alleles_count} "
+            f"({equal_alleles_count / denom * 100:.2f}%) due to tumor == normal alleles"
+        )
+    print("\n")
     return rows
+
+
+def process_single_vcf_file(args) -> tuple[list[dict], str | None]:
+    """
+    Worker helper for multiprocessing.
+
+    Returns
+    -------
+    tuple[list[dict], str | None]
+        (rows, error_message)
+    """
+    file, filter_by_pass, filter_by_perfect = args
+
+    try:
+        rows = process_vcf_to_rows(
+            file, filter_by_pass=filter_by_pass, filter_by_perfect=filter_by_perfect
+        )
+        return rows, None
+    except Exception as e:
+        return [], f"Skipping {file.name} due to error: {e}"
 
 
 def parse_vcf_files(
@@ -303,6 +336,7 @@ def parse_vcf_files(
     *,
     filter_by_pass: bool = True,
     filter_by_perfect: bool = True,
+    n_jobs: int | None = None,
 ) -> pd.DataFrame:
     """
     Process all VCF (``.vcf`` / ``.vcf.gz``) files in a directory into a DataFrame.
@@ -320,6 +354,10 @@ def parse_vcf_files(
         If ``True``, keep only records with ``FILTER == "PASS"``.
     filter_by_perfect : bool, optional
         If ``True``, keep only records with ``INFO/PERFECT != "FALSE"`` when present.
+    n_jobs : int or None, optional
+        Number of parallel worker processes to use for parsing files.
+
+        - If ``None`` (default), uses all available CPU cores.
 
     Returns
     -------
@@ -342,23 +380,11 @@ def parse_vcf_files(
     """
     input_dir = Path(input_dir)
     all_rows: list[dict] = []
-
-    for file in sorted(input_dir.iterdir()):
-        # accept foo.vcf and foo.vcf.gz
-        if file.name.endswith(".vcf") or file.name.endswith(".vcf.gz"):
-            print(f"Processing {file.name}...")
-            try:
-                rows = process_vcf_to_rows(
-                    file,
-                    filter_by_pass=filter_by_pass,
-                    filter_by_perfect=filter_by_perfect,
-                )
-            except Exception as e:
-                # skip problematic file but continue with the rest
-                print(f"Skipping {file.name} due to error: {e}")
-                continue
-
-            all_rows.extend(rows)
+    files = sorted(
+        file
+        for file in input_dir.iterdir()
+        if file.name.endswith(".vcf") or file.name.endswith(".vcf.gz")
+    )
 
     columns = [
         "sample",
@@ -373,6 +399,51 @@ def parse_vcf_files(
         "motif",
         "genotype_separator",
     ]
+    if not files:
+        return pd.DataFrame(columns=columns)
+    if n_jobs is None:
+        n_jobs = os.cpu_count() or 1
+
+    all_rows: list[dict] = []
+
+    # Sequential mode for debugging or tiny inputs
+    if n_jobs == 1:
+        for file in files:
+            print(f"Processing {file.name}...")
+            rows, error = process_single_vcf_file((file, filter_by_pass, filter_by_perfect))
+            if error is not None:
+                print(error)
+                continue
+            all_rows.extend(rows)
+
+    else:
+        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+            futures = {
+                executor.submit(
+                    process_single_vcf_file,
+                    (
+                        file,
+                        filter_by_pass,
+                        filter_by_perfect
+                    ),
+                ): file
+                for file in files
+            }
+
+            for future in as_completed(futures):
+                file = futures[future]
+                print(f"Finished {file.name}")
+                try:
+                    rows, error = future.result()
+                except Exception as e:
+                    print(f"Skipping {file.name} due to executor error: {e}")
+                    continue
+
+                if error is not None:
+                    print(error)
+                    continue
+
+                all_rows.extend(rows)
 
     if not all_rows:
         return pd.DataFrame(columns=columns)

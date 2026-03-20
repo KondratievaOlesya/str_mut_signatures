@@ -111,7 +111,7 @@ def run_full_pipeline(vcf_dir: str, output_dir: str) -> Path:
     # ------------------------------------------------------------------
     # 1) Parse all VCF files into mutations dataframe
     # ------------------------------------------------------------------
-    mutations = parse_vcf_files(vcf_dir)
+    mutations = parse_vcf_files(vcf_dir, n_jobs=1)
     assert isinstance(mutations, pd.DataFrame)
     assert not mutations.empty
 

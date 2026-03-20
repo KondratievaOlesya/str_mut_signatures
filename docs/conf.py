@@ -9,7 +9,7 @@
 project = 'str_mut_signatures'
 copyright = '2026, Olesia Kondrateva'
 author = 'Olesia Kondrateva'
-release = '2.0.0'
+release = '2.0.1'
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",      # NumPy/Google docstrings
